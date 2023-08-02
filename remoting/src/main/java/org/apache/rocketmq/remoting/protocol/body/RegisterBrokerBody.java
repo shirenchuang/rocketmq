@@ -113,7 +113,7 @@ public class RegisterBrokerBody extends RemotingSerializable {
     }
 
     public static RegisterBrokerBody decode(byte[] data, boolean compressed, MQVersion.Version brokerVersion) throws IOException {
-        if (!compressed) {
+        if (!compressed) {// 数据没有压缩的话，就直接decode了；一般注册的时候这里都是false；因为解压的话会给NameSrv造成额外的cpu
             return RegisterBrokerBody.decode(data, RegisterBrokerBody.class);
         }
         long start = System.currentTimeMillis();

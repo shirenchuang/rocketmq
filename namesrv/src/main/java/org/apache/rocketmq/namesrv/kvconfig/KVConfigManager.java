@@ -44,6 +44,7 @@ public class KVConfigManager {
     public void load() {
         String content = null;
         try {
+            // 读取路径为 kvConfigPath 的文件内容。
             content = MixAll.file2String(this.namesrvController.getNamesrvConfig().getKvConfigPath());
         } catch (IOException e) {
             log.warn("Load KV config table exception", e);

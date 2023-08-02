@@ -51,6 +51,9 @@ public class NamesrvStartup {
     private static ControllerConfig controllerConfig = null;
 
     public static void main(String[] args) {
+
+        args = new String[]{"-c=/Users/shizhenzhen/IdeaProjects/OpenSource/rocketmq/distribution/conf/szz/namesrv.conf"};
+
         main0(args);
         controllerManagerMain();
     }
@@ -114,7 +117,10 @@ public class NamesrvStartup {
             }
         }
 
+        // 将命令行中的参数解析成Properties并尝试赋值给namesrvConfig ; 但是在这里其实没用。
+        // 因为目前为止的options为 configFile、namesrvAddr、printConfigItem、help ； namesrvConfig 中没有这些属性
         MixAll.properties2Object(ServerUtil.commandLine2Properties(commandLine), namesrvConfig);
+        // 直接打印，不启动
         if (commandLine.hasOption('p')) {
             MixAll.printObjectProperties(logConsole, namesrvConfig);
             MixAll.printObjectProperties(logConsole, nettyServerConfig);
@@ -137,6 +143,7 @@ public class NamesrvStartup {
     public static NamesrvController createAndStartNamesrvController() throws Exception {
 
         NamesrvController controller = createNamesrvController();
+        // 启动Controller（初始化各种、并启动线程）
         start(controller);
         NettyServerConfig serverConfig = controller.getNettyServerConfig();
         String tip = String.format("The Name Server boot success. serializeType=%s, address %s:%d", RemotingCommand.getSerializeTypeConfigInThisServer(), serverConfig.getBindAddress(), serverConfig.getListenPort());
@@ -148,7 +155,7 @@ public class NamesrvStartup {
     public static NamesrvController createNamesrvController() {
 
         final NamesrvController controller = new NamesrvController(namesrvConfig, nettyServerConfig, nettyClientConfig);
-        // remember all configs to prevent discard
+        //  把properties中的属性一起合并到(就是配置文件中的namesrvConfig和nettyServerConfig属性) Configuration中。
         controller.getConfiguration().registerConfig(properties);
         return controller;
     }
@@ -159,6 +166,7 @@ public class NamesrvStartup {
             throw new IllegalArgumentException("NamesrvController is null");
         }
 
+        //初始化
         boolean initResult = controller.initialize();
         if (!initResult) {
             controller.shutdown();

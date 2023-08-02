@@ -18,6 +18,7 @@
 if [ -z "$ROCKETMQ_HOME" ] ; then
   ## resolve links - $0 may be a link to maven's home
   PRG="$0"
+  echo "PRG  $PRG   $ROCKETMQ_HOME"
 
   # need this for relative symlinks
   while [ -h "$PRG" ] ; do
@@ -31,15 +32,22 @@ if [ -z "$ROCKETMQ_HOME" ] ; then
   done
 
   saveddir=`pwd`
+  echo "saveddir=  $saveddir   PRG= $PRG"
 
   ROCKETMQ_HOME=`dirname "$PRG"`/..
 
+  echo "ROCKETMQ_HOME=$ROCKETMQ_HOME"
+
   # make it fully qualified
   ROCKETMQ_HOME=`cd "$ROCKETMQ_HOME" && pwd`
+
+  echo "ROCKETMQ_HOME=$ROCKETMQ_HOME"
 
   cd "$saveddir"
 fi
 
 export ROCKETMQ_HOME
+
+echo  ${ROCKETMQ_HOME}/bin/runserver.sh -Drmq.logback.configurationFile=$ROCKETMQ_HOME/conf/rmq.namesrv.logback.xml org.apache.rocketmq.namesrv.NamesrvStartup $@
 
 sh ${ROCKETMQ_HOME}/bin/runserver.sh -Drmq.logback.configurationFile=$ROCKETMQ_HOME/conf/rmq.namesrv.logback.xml org.apache.rocketmq.namesrv.NamesrvStartup $@

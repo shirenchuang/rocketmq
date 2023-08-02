@@ -26,7 +26,7 @@ public class SemaphoreReleaseOnlyOnce {
     public SemaphoreReleaseOnlyOnce(Semaphore semaphore) {
         this.semaphore = semaphore;
     }
-
+    // 释放 令牌
     public void release() {
         if (this.semaphore != null) {
             if (this.released.compareAndSet(false, true)) {

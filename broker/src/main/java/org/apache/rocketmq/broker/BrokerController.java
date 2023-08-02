@@ -424,7 +424,7 @@ public class BrokerController {
     public BrokerMetricsManager getBrokerMetricsManager() {
         return brokerMetricsManager;
     }
-
+    // 初始化网络监听服务；这里开启了2个监听端口； 跟kafka的多listeners类似
     protected void initializeRemotingServer() throws CloneNotSupportedException {
         this.remotingServer = new NettyRemotingServer(this.nettyServerConfig, this.clientHousekeepingService);
         NettyServerConfig fastConfig = (NettyServerConfig) this.nettyServerConfig.clone();
@@ -434,7 +434,7 @@ public class BrokerController {
             listeningPort = 0;
         }
         fastConfig.setListenPort(listeningPort);
-
+        // 多开放了一个监听端口；
         this.fastRemotingServer = new NettyRemotingServer(fastConfig, this.clientHousekeepingService);
     }
 
@@ -684,7 +684,7 @@ public class BrokerController {
     protected void initializeScheduledTasks() {
 
         initializeBrokerScheduledTasks();
-
+        // 每隔5秒 去Namesrv获取一下集群元信息，并更新到自己的内存中
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
@@ -694,12 +694,12 @@ public class BrokerController {
                     LOG.error("ScheduledTask refresh metadata exception", e);
                 }
             }
-        }, 10, 5, TimeUnit.SECONDS);
+        }, 10, 4200, TimeUnit.SECONDS);//TODO  这里 5秒改成了42秒；记得改回来
 
         if (this.brokerConfig.getNamesrvAddr() != null) {
             this.updateNamesrvAddr();
             LOG.info("Set user specified name server address: {}", this.brokerConfig.getNamesrvAddr());
-            // also auto update namesrv if specify
+            // also auto update namesrv if specify 每隔两分钟更新一次updateNamesrvAddr
             this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
                 @Override
                 public void run() {
@@ -777,7 +777,7 @@ public class BrokerController {
     }
 
     public boolean initialize() throws CloneNotSupportedException {
-
+        // 加载本地元信息?
         boolean result = this.initializeMetadata();
         if (!result) {
             return false;
@@ -821,19 +821,19 @@ public class BrokerController {
         this.brokerMetricsManager = new BrokerMetricsManager(this);
 
         if (result) {
-
+            // 初始化网络监听服务；这里开启了2个监听端口； 跟kafka的多listeners类似
             initializeRemotingServer();
-
+            //初始化一下资源；主要是一些 线程执行器的初始化
             initializeResources();
-
+            // 注册请求处理类和线程执行器；不同的Request可以注册不同的执行器和线程执行器；当然没有设置的话会有默认的
             registerProcessor();
-
+            //初始化一些定时任务
             initializeScheduledTasks();
 
             initialTransaction();
 
             initialAcl();
-
+            // fastRemotingServer 和 remotingServer 都注册一下 RpcHooks 钩子
             initialRpcHooks();
 
             if (TlsSystemConfig.tlsMode != TlsMode.DISABLED) {
@@ -1617,7 +1617,7 @@ public class BrokerController {
             changeSpecialServiceStatus(this.brokerConfig.getBrokerId() == MixAll.MASTER_ID);
             this.registerBrokerAll(true, false, true);
         }
-
+        // 默认每隔30秒注册一下Broker；可以通过设置registerNameServerPeriod来设置间隔时间；但是总体时间在10秒到60秒之间；
         scheduledFutures.add(this.scheduledExecutorService.scheduleAtFixedRate(new AbstractBrokerRunnable(this.getBrokerIdentity()) {
             @Override
             public void run0() {
@@ -1732,7 +1732,7 @@ public class BrokerController {
         topicConfigWrapper.setTopicQueueMappingInfoMap(this.getTopicQueueMappingManager().getTopicQueueMappingTable().entrySet().stream().map(
             entry -> new AbstractMap.SimpleImmutableEntry<>(entry.getKey(), TopicQueueMappingDetail.cloneAsMappingInfo(entry.getValue()))
         ).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
-
+        // 只要Broker缺少读或者写的权限，就将Topic中的这个权限 都剔除掉；比如Broker只有只读权限，那么Topic中就算有写权限，也要剔除掉
         if (!PermName.isWriteable(this.getBrokerConfig().getBrokerPermission())
             || !PermName.isReadable(this.getBrokerConfig().getBrokerPermission())) {
             ConcurrentHashMap<String, TopicConfig> topicConfigTable = new ConcurrentHashMap<>();
@@ -1744,7 +1744,7 @@ public class BrokerController {
             }
             topicConfigWrapper.setTopicConfigTable(topicConfigTable);
         }
-
+        // 是否需要注册； needRegister是发起了RequestCode.QUERY_DATA_VERSION的请求来判断需不需要注册
         if (forceRegister || needRegister(this.brokerConfig.getBrokerClusterName(),
             this.getBrokerAddr(),
             this.brokerConfig.getBrokerName(),
@@ -1776,7 +1776,7 @@ public class BrokerController {
             this.brokerConfig.isCompressedRegister(),
             this.brokerConfig.isEnableSlaveActingMaster() ? this.brokerConfig.getBrokerNotActiveTimeoutMillis() : null,
             this.getBrokerIdentity());
-
+        // 处理返回结果
         handleRegisterBrokerResult(registerBrokerResultList, checkOrderConfig);
     }
 

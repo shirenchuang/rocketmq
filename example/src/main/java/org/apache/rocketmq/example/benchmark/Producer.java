@@ -63,6 +63,10 @@ public class Producer {
     public static void main(String[] args) throws MQClientException {
         System.setProperty(RemotingCommand.SERIALIZE_TYPE_PROPERTY, SerializeType.ROCKETMQ.name());
 
+
+        args = new String[]{"-n=127.0.0.1:9876","-m=true","–w=1","–s=1024"};
+
+
         Options options = ServerUtil.buildCommandlineOptions(new Options());
         CommandLine commandLine = ServerUtil.parseCmdLine("benchmarkProducer", args, buildCommandlineOptions(options), new DefaultParser());
         if (null == commandLine) {

@@ -18,14 +18,26 @@
 package org.apache.rocketmq.remoting;
 
 public interface RemotingService {
+
+    /**
+     * 启动
+     */
     void start();
 
+    /**
+     * 关闭
+     */
     void shutdown();
 
+    /**
+     * 注册钩子；一般在发起请求的之前和之后 都会调用钩子
+     * @param rpcHook
+     */
     void registerRPCHook(RPCHook rpcHook);
 
     /**
      * Remove all rpc hooks.
+     * 移除所有的钩子
      */
     void clearRPCHook();
 }

@@ -27,33 +27,44 @@ import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.remoting.exception.RemotingException;
 
 public interface MQProducer extends MQAdmin {
+
+    /** 启动**/
     void start() throws MQClientException;
 
+    /**关闭**/
     void shutdown();
 
     List<MessageQueue> fetchPublishMessageQueues(final String topic) throws MQClientException;
 
+    /** 发送消息。**/
     SendResult send(final Message msg) throws MQClientException, RemotingException, MQBrokerException,
         InterruptedException;
 
+    /**与send(Message)相同，但另外指定了发送超时。**/
     SendResult send(final Message msg, final long timeout) throws MQClientException,
         RemotingException, MQBrokerException, InterruptedException;
 
+    /**发送消息, 带有回调函数**/
     void send(final Message msg, final SendCallback sendCallback) throws MQClientException,
         RemotingException, InterruptedException;
 
+    /**发送消息, 带有回调函数和超时时间**/
     void send(final Message msg, final SendCallback sendCallback, final long timeout)
         throws MQClientException, RemotingException, InterruptedException;
 
+    /**发送单向消息**/
     void sendOneway(final Message msg) throws MQClientException, RemotingException,
         InterruptedException;
 
+    /**发送消息 ，但是指定了要发往的消息队列**/
     SendResult send(final Message msg, final MessageQueue mq) throws MQClientException,
         RemotingException, MQBrokerException, InterruptedException;
 
+    /**发送消息 ，但是指定了要发往的消息队列和超时时间**/
     SendResult send(final Message msg, final MessageQueue mq, final long timeout)
         throws MQClientException, RemotingException, MQBrokerException, InterruptedException;
 
+    /**发送消息 ，但是指定了要发往的消息队列和回调函数**/
     void send(final Message msg, final MessageQueue mq, final SendCallback sendCallback)
         throws MQClientException, RemotingException, InterruptedException;
 

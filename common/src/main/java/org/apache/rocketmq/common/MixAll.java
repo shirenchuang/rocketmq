@@ -135,6 +135,7 @@ public class MixAll {
         return OS.indexOf("sunos") >= 0;
     }
 
+    //默认：http://jmenv.tbsite.net:8080/rocketmq/nsaddr
     public static String getWSAddr() {
         String wsDomainName = System.getProperty("rocketmq.namesrv.domain", DEFAULT_NAMESRV_ADDR_LOOKUP);
         String wsDomainSubgroup = System.getProperty("rocketmq.namesrv.domain.subgroup", "nsaddr");
@@ -349,6 +350,13 @@ public class MixAll {
         return properties;
     }
 
+    /**
+     * 先解析 object 里面的所有set开头的方法, 如果Properties中有对应的属性的话，则直接赋值给object的那个方法(只有一位参数的那个方法)。
+     * 1. object 中所有 set开头的方法，并解析出属性名，比如 setName(), 解析出来的属性为name;
+     * 2. 判断Properties是否有 1中解析出来的属性，如果有的话，则执行 method.invoke方法,并且只传入一个参数。(方法为set开头并且参数只有一位的方法)
+     * @param p
+     * @param object
+     */
     public static void properties2Object(final Properties p, final Object object) {
         Method[] methods = object.getClass().getMethods();
         for (Method method : methods) {

@@ -16,7 +16,9 @@
  */
 package org.apache.rocketmq.remoting.protocol;
 
+import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.annotation.JSONField;
+import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.google.common.base.Stopwatch;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -48,6 +50,7 @@ public class RemotingCommand {
     static final Logger log = LoggerFactory.getLogger(LoggerName.ROCKETMQ_REMOTING_NAME);
     private static final int RPC_TYPE = 0; // 0, REQUEST_COMMAND
     private static final int RPC_ONEWAY = 1; // 0, RPC
+    // 保持 各个 Header对象，与字段的缓存
     private static final Map<Class<? extends CommandCustomHeader>, Field[]> CLASS_HASH_MAP =
         new HashMap<>();
     private static final Map<Class, String> CANONICAL_NAME_CACHE = new HashMap<>();
@@ -78,18 +81,59 @@ public class RemotingCommand {
             }
         }
     }
-
+    /**
+     *  Request ：请求操作码，对应RequestCode
+     *  Response：相应码，对应ResponseCode，0表示成功，非0表示错误码
+     */
     private int code;
+    /**
+     * Request ：标记请求方的语言类型，默认JAVA
+     * Response：应答方所使用的语言，默认JAVA
+     */
     private LanguageCode language = LanguageCode.JAVA;
+
+    /**
+     * 当前客户端的版本号；比如V5.1.3的版本为439；可以通过MQVersion.CURRENT_VERSION查看版本号
+     *
+     * Request: 请求方的版本号
+     * Response：响应方的版本号
+     */
     private int version = 0;
+    /**
+     * Request: 请求方的唯一ID; 每个请求都不一样；是自增的ID
+     * Response：应答方不做修改，原值返回
+     */
     private int opaque = requestId.getAndIncrement();
+    /**
+     * 标记通信的类型，借助下面两个字段，通过2位的bit mask来标记
+     * private static final int RPC_TYPE = 0;
+     * private static final int RPC_ONEWAY = 1
+     * 低位为0表示是请求方，为1是表示应答方
+     * 高位为0时表示普通的需要等待结果的RPC请求，高位为1时表示单向请求
+     */
     private int flag = 0;
+    /**
+     * Request ：传输的自定义文本
+     * Response：错误详细描述信息
+     */
     private String remark;
+    //
+    /**
+     * 自定义字段
+     * Request：将customHeader把字段里面的属性转换到extFields中；(非静态属性并且开头不为this的属性)
+     * Response：将extFields里面的值通过反射写入到customHeader中
+     */
     private HashMap<String, String> extFields;
+    /**
+     * Request：自定义请求头；把字段里面的属性转换到extFields中
+     * Response：自定义Response；将收到的Response中的将extFields里面的值通过反射写入到customHeader中
+     */
     private transient CommandCustomHeader customHeader;
 
+    // 序列化类型，默认JSON; 可以通过系统属性rocketmq.serialize.type设置 或者环境变量ROCKETMQ_SERIALIZE_TYPE设置；设置的时候 0为JSON 1 为ROCKETMQ
     private SerializeType serializeTypeCurrentRPC = serializeTypeConfigInThisServer;
 
+    // 数据体
     private transient byte[] body;
     private boolean suspended;
     private Stopwatch processTimer;
@@ -113,7 +157,7 @@ public class RemotingCommand {
         setCmdVersion(cmd);
         return cmd;
     }
-
+    // 设置当前请求的版本号，例如V5.1.3返回的是439; 这个系统属性REMOTING_VERSION_KEY 已经被赋值了`Integer.toString(MQVersion.CURRENT_VERSION)`
     protected static void setCmdVersion(RemotingCommand cmd) {
         if (configVersion >= 0) {
             cmd.setVersion(configVersion);
@@ -183,15 +227,17 @@ public class RemotingCommand {
     }
 
     public static RemotingCommand decode(final ByteBuf byteBuffer) throws RemotingCommandException {
-        int length = byteBuffer.readableBytes();
-        int oriHeaderLen = byteBuffer.readInt();
-        int headerLength = getHeaderLength(oriHeaderLen);
+        int length = byteBuffer.readableBytes();// 可读字节数(这里跟Request传过来的数据少了4个字节，因为最前面的4个字节是用来表示有意义的总自己数的；在这直接已经把最前面的4个字节去掉了)
+        int oriHeaderLen = byteBuffer.readInt();//读最前面4-8个字节；值为（高8位为序列化类 低24位为headerSize大小 ）
+        int headerLength = getHeaderLength(oriHeaderLen);// 读取低24位的值；也就是 HeaderSize的大小
         if (headerLength > length - 4) {
             throw new RemotingCommandException("decode error, bad header length: " + headerLength);
         }
-
+        // 读取Header的数据；并根据序列化类型 返序列化
         RemotingCommand cmd = headerDecode(byteBuffer, headerLength, getProtocolType(oriHeaderLen));
+        //System.out.println("给Header返序列化的值decode：\n"+ JSONObject.toJSONString(cmd, SerializerFeature.WriteMapNullValue));
 
+        // body的长度；就是总长度 -  4个字节(表述序列化类型和HeaderSize大小) - Header的长度
         int bodyLength = length - 4 - headerLength;
         byte[] bodyData = null;
         if (bodyLength > 0) {
@@ -202,7 +248,7 @@ public class RemotingCommand {
 
         return cmd;
     }
-
+    // 读取低24位的值；也就是 HeaderSize的大小
     public static int getHeaderLength(int length) {
         return length & 0xFFFFFF;
     }
@@ -211,9 +257,12 @@ public class RemotingCommand {
         SerializeType type) throws RemotingCommandException {
         switch (type) {
             case JSON:
+                // 从byteBuffer中读取对应的长度数据； 这里读取的是 Header的数据
                 byte[] headerData = new byte[len];
                 byteBuffer.readBytes(headerData);
+                // 把Header数据 反序列化为RemotingCommand
                 RemotingCommand resultJson = RemotingSerializable.decode(headerData, RemotingCommand.class);
+                // 设置序列化类型（读取的高八位的值）
                 resultJson.setSerializeTypeCurrentRPC(type);
                 return resultJson;
             case ROCKETMQ:
@@ -226,7 +275,7 @@ public class RemotingCommand {
 
         return null;
     }
-
+    // 读取高八位的值，这个值表示的是 序列化类型；
     public static SerializeType getProtocolType(int source) {
         return SerializeType.valueOf((byte) ((source >> 24) & 0xFF));
     }
@@ -238,11 +287,11 @@ public class RemotingCommand {
     public static SerializeType getSerializeTypeConfigInThisServer() {
         return serializeTypeConfigInThisServer;
     }
-
+    // 高8位保存 序列化类型 ； 低24位保存 source的大小
     public static int markProtocolType(int source, SerializeType type) {
         return (type.getCode() << 24) | (source & 0x00FFFFFF);
     }
-
+    // 设置为Response 应答方
     public void markResponseType() {
         int bits = 1 << RPC_TYPE;
         this.flag |= bits;
@@ -255,12 +304,12 @@ public class RemotingCommand {
     public void writeCustomHeader(CommandCustomHeader customHeader) {
         this.customHeader = customHeader;
     }
-
+    // 将获取到的请求体解码；并将extFields里面的属性，反射写会CommandCustomHeader中
     public CommandCustomHeader decodeCommandCustomHeader(
         Class<? extends CommandCustomHeader> classHeader) throws RemotingCommandException {
         return decodeCommandCustomHeader(classHeader, true);
     }
-
+    // 将Response获取到的extFields扩展字段，反射到CommandCustomHeader中     ；如果静态方法或者是this开头的字段则忽略
     public CommandCustomHeader decodeCommandCustomHeader(Class<? extends CommandCustomHeader> classHeader,
         boolean useFastEncode) throws RemotingCommandException {
         CommandCustomHeader objectHeader;
@@ -281,8 +330,7 @@ public class RemotingCommand {
                 ((FastCodesHeader) objectHeader).decode(this.extFields);
                 objectHeader.checkFields();
                 return objectHeader;
-            }
-
+            }   // 将RequestHeader里面的值，设置到对应的 Header对象中；如果是this开头的字段则忽略
             Field[] fields = getClazzFields(classHeader);
             for (Field field : fields) {
                 if (!Modifier.isStatic(field.getModifiers())) {
@@ -323,7 +371,7 @@ public class RemotingCommand {
                     }
                 }
             }
-
+            // 检查字段；各个Header自己实现该接口
             objectHeader.checkFields();
         }
 
@@ -412,14 +460,14 @@ public class RemotingCommand {
             return RemotingSerializable.encode(this);
         }
     }
-
+    // 将用户传过来的 Header  解析成 extFields传输；将非静态方法并且不是以this开头的字段的值 put到extFields集合中，key就是字段名，value就是字段值
     public void makeCustomHeaderToNet() {
         if (this.customHeader != null) {
             Field[] fields = getClazzFields(customHeader.getClass());
             if (null == this.extFields) {
                 this.extFields = new HashMap<>();
             }
-
+            // 将非静态方法并且不是以this开头的字段的值 put到extFields集合中，key就是字段名，value就是字段值
             for (Field field : fields) {
                 if (!Modifier.isStatic(field.getModifiers())) {
                     String name = field.getName();
@@ -444,7 +492,7 @@ public class RemotingCommand {
     public void fastEncodeHeader(ByteBuf out) {
         int bodySize = this.body != null ? this.body.length : 0;
         int beginIndex = out.writerIndex();
-        // skip 8 bytes
+        // skip 8 bytes (跳过前面的8个字节)
         out.writeLong(0);
         int headerSize;
         if (SerializeType.ROCKETMQ == serializeTypeCurrentRPC) {
@@ -453,13 +501,15 @@ public class RemotingCommand {
             }
             headerSize = RocketMQSerializable.rocketMQProtocolEncode(this, out);
         } else {
-            this.makeCustomHeaderToNet();
+            this.makeCustomHeaderToNet();// 将用户请求头转为为 extFields 集合中
             byte[] header = RemotingSerializable.encode(this);
             headerSize = header.length;
             out.writeBytes(header);
         }
         out.setInt(beginIndex, 4 + headerSize + bodySize);
+        // 写入4个字节；高8位表示序列化类型；低24位表示headerSize的大小
         out.setInt(beginIndex + 4, markProtocolType(headerSize, serializeTypeCurrentRPC));
+
     }
 
     public ByteBuffer encodeHeader() {
@@ -494,7 +544,7 @@ public class RemotingCommand {
 
         return result;
     }
-
+    // 设置为 单项请求  (左移1位；高位表示 是否为OnewayRPC) ； 1位单向请求；0 为普通请求的需要返回结果的请求
     public void markOnewayRPC() {
         int bits = 1 << RPC_ONEWAY;
         this.flag |= bits;

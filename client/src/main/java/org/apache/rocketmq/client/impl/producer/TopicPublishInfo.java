@@ -68,6 +68,7 @@ public class TopicPublishInfo {
 
     public MessageQueue selectOneMessageQueue(final String lastBrokerName) {
         if (lastBrokerName == null) {
+            // 轮训队列，选择下一个队列
             return selectOneMessageQueue();
         } else {
             for (int i = 0; i < this.messageQueueList.size(); i++) {
@@ -81,7 +82,7 @@ public class TopicPublishInfo {
             return selectOneMessageQueue();
         }
     }
-
+    // 轮训选择消息队列
     public MessageQueue selectOneMessageQueue() {
         int index = this.sendWhichQueue.incrementAndGet();
         int pos = index % this.messageQueueList.size();

@@ -47,6 +47,15 @@ public class BrokerStartup {
     public static final SystemConfigFileHelper CONFIG_FILE_HELPER = new SystemConfigFileHelper();
 
     public static void main(String[] args) {
+        //args = new String[]{"-n=127.0.0.1:9876"};
+
+        //System.setProperty("rocketmq.home.dir","/Users/shizhenzhen/Documents/work/rocketmq/rocketmq-all-5.1.1-bin-release");
+        System.setProperty("rocketmq.zone","szz_zone");
+        System.setProperty("rocketmq.zone.mode","szz_mode");
+
+        args = new String[]{"-c=/Users/shizhenzhen/IdeaProjects/OpenSource/rocketmq/distribution/conf/szz/szz_broker_a_m.conf"};
+
+
         start(createBrokerController(args));
     }
 
@@ -107,13 +116,15 @@ public class BrokerStartup {
         }
 
         if (properties != null) {
+            // 将properties属性rocketmq.namesrv.domain 、rocketmq.namesrv.domain.subgroup 设置到系统属性中
             properties2SystemEnv(properties);
             MixAll.properties2Object(properties, brokerConfig);
             MixAll.properties2Object(properties, nettyServerConfig);
             MixAll.properties2Object(properties, nettyClientConfig);
             MixAll.properties2Object(properties, messageStoreConfig);
         }
-
+        // 把 namesrvAddr 和 configFile 属性设置到BrokerConfig中
+        // 但是brokerConfig只要namesrvAddr属性, 所以这里只是设置一下namesrvAddr
         MixAll.properties2Object(ServerUtil.commandLine2Properties(commandLine), brokerConfig);
         if (null == brokerConfig.getRocketmqHome()) {
             System.out.printf("Please set the %s variable in your environment " +
@@ -135,13 +146,14 @@ public class BrokerStartup {
                 System.exit(-3);
             }
         }
-
+        // 从节点
         if (BrokerRole.SLAVE == messageStoreConfig.getBrokerRole()) {
             int ratio = messageStoreConfig.getAccessMessageInMemoryMaxRatio() - 10;
             messageStoreConfig.setAccessMessageInMemoryMaxRatio(ratio);
         }
 
         // Set broker role according to ha config
+        // 如果是master角色，brokerId设置为0；如果是SLAVE，则检查是不是大于0
         if (!brokerConfig.isEnableControllerMode()) {
             switch (messageStoreConfig.getBrokerRole()) {
                 case ASYNC_MASTER:
@@ -158,16 +170,16 @@ public class BrokerStartup {
                     break;
             }
         }
-
+        // 是不是支持多副本
         if (messageStoreConfig.isEnableDLegerCommitLog()) {
             brokerConfig.setBrokerId(-1);
         }
-
+        // 支持controller模式 和 支持多副本模式不能同时配置
         if (brokerConfig.isEnableControllerMode() && messageStoreConfig.isEnableDLegerCommitLog()) {
             System.out.printf("The config enableControllerMode and enableDLegerCommitLog cannot both be true.%n");
             System.exit(-4);
         }
-
+        // 将HaListenPort设置为 ListenPort() + 1
         if (messageStoreConfig.getHaListenPort() <= 0) {
             messageStoreConfig.setHaListenPort(nettyServerConfig.getListenPort() + 1);
         }

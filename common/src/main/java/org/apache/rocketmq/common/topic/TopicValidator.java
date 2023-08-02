@@ -133,7 +133,7 @@ public class TopicValidator {
             return remark;
         }
     }
-
+    // 判断不是系统topic； rmq_sys_ 开头的都是；还有一些启动就创建的
     public static boolean isSystemTopic(String topic) {
         return SYSTEM_TOPIC_SET.contains(topic) || topic.startsWith(SYSTEM_TOPIC_PREFIX);
     }

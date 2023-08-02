@@ -25,6 +25,9 @@ import org.apache.rocketmq.remoting.RPCHook;
 import org.apache.rocketmq.logging.org.slf4j.Logger;
 import org.apache.rocketmq.logging.org.slf4j.LoggerFactory;
 
+/**
+ * 客户端管理器，生产者和消费者的每个客户端单例都缓存在这里；
+ */
 public class MQClientManager {
     private final static Logger log = LoggerFactory.getLogger(MQClientManager.class);
     private static MQClientManager instance = new MQClientManager();
@@ -43,7 +46,7 @@ public class MQClientManager {
     public MQClientInstance getOrCreateMQClientInstance(final ClientConfig clientConfig) {
         return getOrCreateMQClientInstance(clientConfig, null);
     }
-
+    // 根据ClientId获取客户端实例 , 如果没有的话 则创建
     public MQClientInstance getOrCreateMQClientInstance(final ClientConfig clientConfig, RPCHook rpcHook) {
         String clientId = clientConfig.buildMQClientId();
         MQClientInstance instance = this.factoryTable.get(clientId);

@@ -213,7 +213,7 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
         final RegisterBrokerResponseHeader responseHeader = (RegisterBrokerResponseHeader) response.readCustomHeader();
         final RegisterBrokerRequestHeader requestHeader =
             (RegisterBrokerRequestHeader) request.decodeCommandCustomHeader(RegisterBrokerRequestHeader.class);
-
+        // 校验值
         if (!checksum(ctx, request, requestHeader)) {
             response.setCode(ResponseCode.SYSTEM_ERROR);
             response.setRemark("crc32 not match");
@@ -232,7 +232,7 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
             // RegisterBrokerBody of old version only contains TopicConfig.
             topicConfigWrapper = extractRegisterTopicConfigFromRequest(request);
         }
-
+        //TODO... 看到这
         RegisterBrokerResult result = this.namesrvController.getRouteInfoManager().registerBroker(
             requestHeader.getClusterName(),
             requestHeader.getBrokerAddr(),
@@ -279,7 +279,7 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
         }
         return topicConfigWrapper;
     }
-
+    // 从Request中提取Broker的相关信息
     private RegisterBrokerBody extractRegisterBrokerBodyFromRequest(RemotingCommand request,
         RegisterBrokerRequestHeader requestHeader) throws RemotingCommandException {
         RegisterBrokerBody registerBrokerBody = new RegisterBrokerBody();

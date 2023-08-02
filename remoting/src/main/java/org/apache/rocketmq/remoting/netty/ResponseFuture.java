@@ -56,6 +56,7 @@ public class ResponseFuture {
         this.once = once;
     }
 
+    /** 回调也只会执行一次**/
     public void executeInvokeCallback() {
         if (invokeCallback != null) {
             if (this.executeCallbackOnlyOnce.compareAndSet(false, true)) {
@@ -79,9 +80,14 @@ public class ResponseFuture {
         long diff = System.currentTimeMillis() - this.beginTimestamp;
         return diff > this.timeoutMillis;
     }
-
+    /**
+     *  同步请求的情况下，会调用这个等待Response的返回；直到超时；或者结果返回
+     *  这里用countDownLatch作为同步拦截器；当收到了Response之后countDownLatch会被释放，并且responseCommand也会被赋值
+     * **/
     public RemotingCommand waitResponse(final long timeoutMillis) throws InterruptedException {
+        long now = System.currentTimeMillis();
         this.countDownLatch.await(timeoutMillis, TimeUnit.MILLISECONDS);
+        long now2 = System.currentTimeMillis();
         return this.responseCommand;
     }
 

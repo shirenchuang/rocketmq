@@ -16,11 +16,18 @@
  */
 package org.apache.rocketmq.example.quickstart;
 
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.serializer.SerializerFeature;
+import org.apache.commons.collections.MapUtils;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
 import org.apache.rocketmq.client.producer.SendResult;
 import org.apache.rocketmq.common.message.Message;
+import org.apache.rocketmq.remoting.RPCHook;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
+import org.apache.rocketmq.remoting.protocol.RemotingCommand;
+
+import java.io.UnsupportedEncodingException;
 
 /**
  * This class demonstrates how to send messages to brokers using provided {@link DefaultMQProducer}.
@@ -31,12 +38,12 @@ public class Producer {
      * The number of produced messages.
      */
     public static final int MESSAGE_COUNT = 1000;
-    public static final String PRODUCER_GROUP = "please_rename_unique_group_name";
+    public static final String PRODUCER_GROUP = "szz_producer_group_name";
     public static final String DEFAULT_NAMESRVADDR = "127.0.0.1:9876";
     public static final String TOPIC = "TopicTest";
     public static final String TAG = "TagA";
 
-    public static void main(String[] args) throws MQClientException, InterruptedException {
+    public static void main1(String[] args) throws MQClientException, InterruptedException {
 
         /*
          * Instantiate with a producer group name.
@@ -56,6 +63,7 @@ public class Producer {
         // Uncomment the following line while debugging, namesrvAddr should be set to your local address
         producer.setNamesrvAddr(DEFAULT_NAMESRVADDR);
 
+
         /*
          * Launch the instance.
          */
@@ -68,8 +76,8 @@ public class Producer {
                  * Create a message instance, specifying topic, tag and message body.
                  */
                 Message msg = new Message(TOPIC /* Topic */,
-                    TAG /* Tag */,
-                    ("Hello RocketMQ " + i).getBytes(RemotingHelper.DEFAULT_CHARSET) /* Message body */
+                        TAG /* Tag */,
+                        ("Hello RocketMQ " + i).getBytes(RemotingHelper.DEFAULT_CHARSET) /* Message body */
                 );
 
                 /*
@@ -122,4 +130,77 @@ public class Producer {
          */
         producer.shutdown();
     }
+
+
+    public static void main(String[] args) {
+        try {
+            sendSyncMsg();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 发送同步消息，同步消息没有callback，只有异步消息才有
+     *
+     * @throws MQClientException
+     * @throws InterruptedException
+     * @throws UnsupportedEncodingException
+     */
+    public static void sendSyncMsg() throws MQClientException, InterruptedException, UnsupportedEncodingException {
+        String topic = "SZZ-SyncMsg";
+        String tag = "Tag-SZZ";
+        String groupName = "szz_producer_group";
+        // 设置自定义Hook 和 开启消息轨迹
+        DefaultMQProducer producer = new DefaultMQProducer(groupName, new SzzProducerRPCHook(),false,null);
+        // 可以通过  系统变量rocketmq.namesrv.addr > 环境变量：NAMESRV_ADDR 设置 ；
+       // producer.setNamesrvAddr(DEFAULT_NAMESRVADDR);
+        producer.setNamesrvAddr("http://jmenv.tbsite.net:8080/rocketmq/nsaddr");
+        // 如果设置了 命名空间的话, 最终的ProducerGroup为【${namespace}%groupName】 例如： szz_daily%szz_producer_group
+        //producer.setNamespace("szz_daily");
+        // 设置生产者客户端实例名称; 可以通过系统属性`rocketmq.client.name` 设置，没有设置的话默认DEFAULT; 但是启动的时候判断如果是DEFAULT，则将它改成：PID@时间戳
+        producer.setInstanceName("szz-producer-cliendName");
+        producer.start();
+
+       /* DefaultMQProducer producer2 = new DefaultMQProducer(groupName);
+        producer2.setInstanceName("szz-producer-cliendName");
+        producer2.start();
+*/
+
+        Message msg = new Message(topic, tag,
+                (" I'm 石臻臻, timestamp:" + System.currentTimeMillis()).getBytes(RemotingHelper.DEFAULT_CHARSET)
+        );
+
+        try {
+            SendResult sendResult = producer.send(msg);
+            System.out.println(JSONObject.toJSONString(sendResult, SerializerFeature.WriteMapNullValue));
+        } catch (Exception e) {
+            e.printStackTrace();
+            Thread.sleep(1000);
+        }
+
+    }
+
+
+    public static class SzzProducerRPCHook implements RPCHook {
+
+        @Override
+        public void doBeforeRequest(String remoteAddr, RemotingCommand request) {
+            // 判断一下发送之前的消息体是不是太大了
+            if (request.getBody()!=null && request.getBody().length > 10) {
+                System.out.println("生产者钩子SzzProducerRPCHook, 执行了doBeforeRequest , 消息体太大啦,目前大小： " + request.getBody().length);
+            }
+        }
+
+        @Override
+        public void doAfterResponse(String remoteAddr, RemotingCommand request, RemotingCommand response) {
+            // 打印一下 Ext属性
+            System.out.println("生产者钩子SzzProducerRPCHook, 执行了doAfterResponse .... ");
+
+            if(MapUtils.isNotEmpty( response.getExtFields())){
+                response.getExtFields().entrySet().forEach(entry -> System.out.println(entry.getKey() + ":" + entry.getValue()));
+            }
+        }
+    }
+
 }

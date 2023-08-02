@@ -254,7 +254,7 @@ public class RouteInfoManager {
             if (!brokerAddrsMap.isEmpty()) {
                 prevMinBrokerId = Collections.min(brokerAddrsMap.keySet());
             }
-
+            // 判断最小的BrokerId是否有变动了;
             if (brokerId < prevMinBrokerId) {
                 isMinBrokerIdChanged = true;
             }
@@ -756,6 +756,7 @@ public class RouteInfoManager {
         return null;
     }
 
+    // 扫描不活跃的Broker；并关闭通道
     public void scanNotActiveBroker() {
         try {
             log.info("start scanNotActiveBroker");

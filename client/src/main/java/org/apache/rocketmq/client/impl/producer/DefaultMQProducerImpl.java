@@ -131,8 +131,9 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     public DefaultMQProducerImpl(final DefaultMQProducer defaultMQProducer, RPCHook rpcHook) {
         this.defaultMQProducer = defaultMQProducer;
         this.rpcHook = rpcHook;
-
+        // 异步发送请求线程池队列；50000个容量的阻塞队列
         this.asyncSenderThreadPoolQueue = new LinkedBlockingQueue<>(50000);
+        // 默认的异步发送线程池
         this.defaultAsyncSenderExecutor = new ThreadPoolExecutor(
             Runtime.getRuntime().availableProcessors(),
             Runtime.getRuntime().availableProcessors(),
@@ -140,13 +141,14 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             TimeUnit.MILLISECONDS,
             this.asyncSenderThreadPoolQueue,
             new ThreadFactoryImpl("AsyncSenderExecutor_"));
+        // 异步并发度的设置不能少于10
         if (defaultMQProducer.getBackPressureForAsyncSendNum() > 10) {
             semaphoreAsyncSendNum = new Semaphore(Math.max(defaultMQProducer.getBackPressureForAsyncSendNum(), 10), true);
         } else {
             semaphoreAsyncSendNum = new Semaphore(10, true);
             log.info("semaphoreAsyncSendNum can not be smaller than 10.");
         }
-
+        // 最大消息大小不能小于1M; 默认为100M
         if (defaultMQProducer.getBackPressureForAsyncSendSize() > 1024 * 1024) {
             semaphoreAsyncSendSize = new Semaphore(Math.max(defaultMQProducer.getBackPressureForAsyncSendSize(), 1024 * 1024), true);
         } else {
@@ -208,15 +210,16 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         switch (this.serviceState) {
             case CREATE_JUST:
                 this.serviceState = ServiceState.START_FAILED;
-
+                //ProducerGroup 不能设置为DEFAULT_PRODUCER
                 this.checkConfig();
 
                 if (!this.defaultMQProducer.getProducerGroup().equals(MixAll.CLIENT_INNER_PRODUCER_GROUP)) {
+                    // 如果没有设置客户端名instanceName的话，设置成 PID@时间戳
                     this.defaultMQProducer.changeInstanceNameToPID();
                 }
-
+                // 创建一个 生产者客户端实例,并缓存到MQClientManager中；
                 this.mQClientFactory = MQClientManager.getInstance().getOrCreateMQClientInstance(this.defaultMQProducer, rpcHook);
-
+                // 将当前的包装类 注册到 MQClientInstance 中，如果之前注册过该producerGroup的实例，则会抛出异常，因为producerGroup需要唯一；
                 boolean registerOK = mQClientFactory.registerProducer(this.defaultMQProducer.getProducerGroup(), this);
                 if (!registerOK) {
                     this.serviceState = ServiceState.CREATE_JUST;
@@ -243,16 +246,17 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             default:
                 break;
         }
-
+        // 发送心跳
         this.mQClientFactory.sendHeartbeatToAllBrokerWithLock();
 
         RequestFutureHolder.getInstance().startScheduledTask(this);
 
     }
-
+    // 检查配置；ProducerGroup不能设置 DEFAULT_PRODUCER
     private void checkConfig() throws MQClientException {
+        // 检查Group的有效性
         Validators.checkGroup(this.defaultMQProducer.getProducerGroup());
-
+        // GroupName不能设置 DEFAULT_PRODUCER
         if (this.defaultMQProducer.getProducerGroup().equals(MixAll.DEFAULT_PRODUCER_GROUP)) {
             throw new MQClientException("producerGroup can not equal " + MixAll.DEFAULT_PRODUCER_GROUP + ", please specify another one.",
                 null);
@@ -608,6 +612,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             MessageQueue mq = null;
             Exception exception = null;
             SendResult sendResult = null;
+            // 重试次数
             int timesTotal = communicationMode == CommunicationMode.SYNC ? 1 + this.defaultMQProducer.getRetryTimesWhenSendFailed() : 1;
             int times = 0;
             String[] brokersSent = new String[timesTotal];
@@ -624,6 +629,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                             msg.setTopic(this.defaultMQProducer.withNamespace(msg.getTopic()));
                         }
                         long costTime = beginTimestampPrev - beginTimestampFirst;
+                        // 如果超时，就直接结束循环，不重试了
                         if (timeout < costTime) {
                             callTimeout = true;
                             break;
@@ -638,6 +644,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                             case ONEWAY:
                                 return null;
                             case SYNC:
+                                // 如果返回结果不是OK；则根据retryAnotherBrokerWhenNotStoreOK 判断是否需要继续重试；
                                 if (sendResult.getSendStatus() != SendStatus.SEND_OK) {
                                     if (this.defaultMQProducer.isRetryAnotherBrokerWhenNotStoreOK()) {
                                         continue;
@@ -665,6 +672,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                             log.debug(msg.toString());
                         }
                         exception = e;
+                        // 判断某些code是否可以重试
                         if (this.defaultMQProducer.getRetryResponseCodes().contains(e.getResponseCode())) {
                             continue;
                         } else {

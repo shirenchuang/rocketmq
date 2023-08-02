@@ -81,6 +81,9 @@ public class ClientConfig {
      */
     protected boolean enableStreamRequestType = false;
 
+    /**
+     * 客户端IP(默认本地IP)@客户端实例名[@unitName][@0【如果enableStreamRequestType=true的话】]
+     */
     public String buildMQClientId() {
         StringBuilder sb = new StringBuilder();
         sb.append(this.getClientIP());
@@ -344,6 +347,7 @@ public class ClientConfig {
         }
 
         if (StringUtils.isNotEmpty(this.namesrvAddr)) {
+            // 解析 域名
             if (NameServerAddressUtils.validateInstanceEndpoint(namesrvAddr)) {
                 namespace = NameServerAddressUtils.parseInstanceIdFromEndpoint(namesrvAddr);
             }

@@ -45,7 +45,7 @@ public class RequestFutureHolder {
     public ConcurrentHashMap<String, RequestResponseFuture> getRequestFutureTable() {
         return requestFutureTable;
     }
-
+    // 每秒检查是否有过期请求，如果有则执行回调
     private void scanExpiredRequest() {
         final List<RequestResponseFuture> rfList = new LinkedList<>();
         Iterator<Map.Entry<String, RequestResponseFuture>> it = requestFutureTable.entrySet().iterator();

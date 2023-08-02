@@ -16,6 +16,8 @@
  */
 package org.apache.rocketmq.remoting.netty;
 
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.google.common.base.Stopwatch;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
@@ -40,12 +42,14 @@ public class NettyDecoder extends LengthFieldBasedFrameDecoder {
     public Object decode(ChannelHandlerContext ctx, ByteBuf in) throws Exception {
         ByteBuf frame = null;
         Stopwatch timer = Stopwatch.createStarted();
-        try {
+        try {// 这里已经读取了4个字节了；
             frame = (ByteBuf) super.decode(ctx, in);
             if (null == frame) {
                 return null;
             }
             RemotingCommand cmd = RemotingCommand.decode(frame);
+            //System.out.println("decode的值(包含了body的)：\n"+ JSONObject.toJSONString(cmd, SerializerFeature.WriteMapNullValue));
+
             cmd.setProcessTimer(timer);
             return cmd;
         } catch (Exception e) {

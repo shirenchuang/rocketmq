@@ -93,7 +93,7 @@ public class MQClientInstance {
     private final long bootTimestamp = System.currentTimeMillis();
 
     /**
-     * The container of the producer in the current client. The key is the name of producerGroup.
+     * 当前客户端中生产者的容器。关键是 ProducerGroup 的名称。
      */
     private final ConcurrentMap<String, MQProducerInner> producerTable = new ConcurrentHashMap<>();
 
@@ -143,9 +143,9 @@ public class MQClientInstance {
         this.nettyClientConfig.setClientCallbackExecutorThreads(clientConfig.getClientCallbackExecutorThreads());
         this.nettyClientConfig.setUseTLS(clientConfig.isUseTLS());
         this.nettyClientConfig.setSocksProxyConfig(clientConfig.getSocksProxyConfig());
+        // 构建请求处理器
         ClientRemotingProcessor clientRemotingProcessor = new ClientRemotingProcessor(this);
         this.mQClientAPIImpl = new MQClientAPIImpl(this.nettyClientConfig, clientRemotingProcessor, rpcHook, clientConfig);
-
         if (this.clientConfig.getNamesrvAddr() != null) {
             this.mQClientAPIImpl.updateNameServerAddressList(this.clientConfig.getNamesrvAddr());
             log.info("user specified name server address: {}", this.clientConfig.getNamesrvAddr());
@@ -588,7 +588,7 @@ public class MQClientInstance {
             }
         }
     }
-
+    // 跟所有Broker保持心跳请求(V2 版本优化了心跳的请求数据,https://docs.google.com/document/d/174p0N7yDX0p_jvaujwHGFsZ410FKbq3vqGT1RUUyV1c/edit?pli=1)
     private void sendHeartbeatToAllBrokerV2(boolean isRebalance) {
         final HeartbeatData heartbeatDataWithSub = this.prepareHeartbeatData(false);
         final boolean producerEmpty = heartbeatDataWithSub.getProducerDataSet().isEmpty();

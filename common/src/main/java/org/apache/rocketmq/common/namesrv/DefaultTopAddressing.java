@@ -72,7 +72,7 @@ public class DefaultTopAddressing implements TopAddressing {
 
         return newString;
     }
-
+    /**加载用户的TopAddressing，通过SPI设置的**/
     private List<TopAddressing> loadCustomTopAddressing() {
         ServiceLoader<TopAddressing> serviceLoader = ServiceLoader.load(TopAddressing.class);
         Iterator<TopAddressing> iterator = serviceLoader.iterator();
@@ -85,6 +85,7 @@ public class DefaultTopAddressing implements TopAddressing {
 
     @Override
     public final String fetchNSAddr() {
+        // 如果用户通过SPI 自定义了TopAddressing，则便利这些TopAddressing，直到获取到第一个nsAddress返回
         if (!topAddressingList.isEmpty()) {
             for (TopAddressing topAddressing : topAddressingList) {
                 String nsAddress = topAddressing.fetchNSAddr();
@@ -93,7 +94,7 @@ public class DefaultTopAddressing implements TopAddressing {
                 }
             }
         }
-        // Return result of default implementation
+        // 返回默认的nsAddress；(通过访问wsAddr获取，如果系统属性没有设置, 则从默认的链接http://jmenv.tbsite.net:8080/rocketmq/nsaddr请求获取；)
         return fetchNSAddr(true, 3000);
     }
 

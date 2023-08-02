@@ -30,14 +30,14 @@ public class NameServerAddressUtils {
     public static boolean validateInstanceEndpoint(String endpoint) {
         return INST_ENDPOINT_PATTERN.matcher(endpoint).matches();
     }
-
+    // 从域名中解析 namespace命名空间, 比如 https://pre.cainiao.com   解析出来的pre就是命名空间了
     public static String parseInstanceIdFromEndpoint(String endpoint) {
         if (StringUtils.isEmpty(endpoint)) {
             return null;
         }
         return endpoint.substring(endpoint.lastIndexOf("/") + 1, endpoint.indexOf('.'));
     }
-
+    // 解析NameSrv；截取最后一个 斜杠/后面的值
     public static String getNameSrvAddrFromNamesrvEndpoint(String nameSrvEndpoint) {
         if (StringUtils.isEmpty(nameSrvEndpoint)) {
             return null;

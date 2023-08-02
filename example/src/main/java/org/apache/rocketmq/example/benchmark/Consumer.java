@@ -51,6 +51,8 @@ import org.apache.rocketmq.srvutil.ServerUtil;
 public class Consumer {
 
     public static void main(String[] args) throws MQClientException, IOException {
+        args = new String[]{"-n=127.0.0.1:9876","-m=true"};
+
         System.setProperty(RemotingCommand.SERIALIZE_TYPE_PROPERTY, SerializeType.ROCKETMQ.name());
         Options options = ServerUtil.buildCommandlineOptions(new Options());
         CommandLine commandLine = ServerUtil.parseCmdLine("benchmarkConsumer", args, buildCommandlineOptions(options), new DefaultParser());

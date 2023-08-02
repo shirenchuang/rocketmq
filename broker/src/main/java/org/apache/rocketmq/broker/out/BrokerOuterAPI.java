@@ -28,6 +28,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.serializer.SerializerFeature;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.broker.latency.BrokerFixedThreadPoolExecutor;
 import org.apache.rocketmq.client.consumer.PullResult;
@@ -484,6 +487,7 @@ public class BrokerOuterAPI {
             requestHeader.setClusterName(clusterName);
             requestHeader.setHaServerAddr(haServerAddr);
             requestHeader.setEnableActingMaster(enableActingMaster);
+            // 不让支持压缩功能，因为会给NameSrv带来额外CPU消耗
             requestHeader.setCompressed(false);
             if (heartbeatTimeoutMillis != null) {
                 requestHeader.setHeartbeatTimeoutMillis(heartbeatTimeoutMillis);
@@ -493,6 +497,8 @@ public class BrokerOuterAPI {
             requestBody.setTopicConfigSerializeWrapper(TopicConfigAndMappingSerializeWrapper.from(topicConfigWrapper));
             requestBody.setFilterServerList(filterServerList);
             final byte[] body = requestBody.encode(compressed);
+            System.out.println("注册Broker(registerBroker)的Body：\n"+JSONObject.toJSONString(requestBody,SerializerFeature.WriteMapNullValue));
+
             final int bodyCrc32 = UtilAll.crc32(body);
             requestHeader.setBodyCrc32(bodyCrc32);
             final CountDownLatch countDownLatch = new CountDownLatch(nameServerAddressList.size());
@@ -530,13 +536,16 @@ public class BrokerOuterAPI {
     private RegisterBrokerResult registerBroker(
         final String namesrvAddr,
         final boolean oneway,
-        final int timeoutMills,
+        int timeoutMills,
         final RegisterBrokerRequestHeader requestHeader,
         final byte[] body
     ) throws RemotingCommandException, MQBrokerException, RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException,
         InterruptedException {
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.REGISTER_BROKER, requestHeader);
         request.setBody(body);
+        System.out.println("注册Broker(registerBroker)的RequestHeader：\n"+JSONObject.toJSONString(requestHeader, SerializerFeature.WriteMapNullValue));
+        //TODO  手动改一下超时时间长一点，方便调试啊
+         timeoutMills = 240000 ;
 
         if (oneway) {
             try {
@@ -1088,7 +1097,7 @@ public class BrokerOuterAPI {
         InvokeCallback invokeCallback) throws InterruptedException, RemotingSendRequestException, RemotingTimeoutException, RemotingTooMuchRequestException, RemotingConnectException {
         this.remotingClient.invokeAsync(brokerAddr, request, timeoutMillis, invokeCallback);
     }
-
+    // 去NameSrv获取集群元信息，然后更新到自己内存中；这里主要是是获取所有Broker地址保持在brokerAddrTable中
     public void refreshMetadata() throws Exception {
         ClusterInfo brokerClusterInfo = getBrokerClusterInfo();
         clientMetadata.refreshClusterInfo(brokerClusterInfo);

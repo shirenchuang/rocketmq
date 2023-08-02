@@ -80,7 +80,7 @@ public class NamespaceUtil {
 
         return resourceWithNamespace;
     }
-
+    // 如果有命名空间，则将所有资源在之前加上一个 ${namespace}%资源
     public static String wrapNamespace(String namespace, String resourceWithOutNamespace) {
         if (StringUtils.isEmpty(namespace) || StringUtils.isEmpty(resourceWithOutNamespace)) {
             return resourceWithOutNamespace;
@@ -89,7 +89,7 @@ public class NamespaceUtil {
         if (isSystemResource(resourceWithOutNamespace) || isAlreadyWithNamespace(resourceWithOutNamespace, namespace)) {
             return resourceWithOutNamespace;
         }
-
+        // 如果是Retry类型 和DLQ 类型 则解析一下
         String resourceWithoutRetryAndDLQ = withOutRetryAndDLQ(resourceWithOutNamespace);
         StringBuilder stringBuilder = new StringBuilder();
 
@@ -150,12 +150,12 @@ public class NamespaceUtil {
 
         return originalResource;
     }
-
+    // 判断是不是系统资源    // 是不是系统Topic 或者是不是系统消费组(CID_RMQ_SYS_  开头)
     private static boolean isSystemResource(String resource) {
         if (StringUtils.isEmpty(resource)) {
             return false;
         }
-
+        // 是不是系统Topic 或者是不是系统消费组(CID_RMQ_SYS_  开头)
         if (TopicValidator.isSystemTopic(resource) || MixAll.isSysConsumerGroup(resource)) {
             return true;
         }

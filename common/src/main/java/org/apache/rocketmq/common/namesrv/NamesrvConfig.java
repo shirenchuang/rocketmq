@@ -241,4 +241,5 @@ public class NamesrvConfig {
     public void setWaitSecondsForService(int waitSecondsForService) {
         this.waitSecondsForService = waitSecondsForService;
     }
+
 }

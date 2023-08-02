@@ -178,6 +178,12 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         }
     }
 
+    /**
+     * 启动客户端
+     * 配置处理器
+     * 定时(默认每隔3秒)监测 NameSrv列表可用性
+     * 每秒扫描和过期已弃用的请求(执行回调函数)。
+     */
     @Override
     public void start() {
         if (this.defaultEventExecutorGroup == null) {
@@ -227,7 +233,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         if (nettyClientConfig.isClientPooledByteBufAllocatorEnable()) {
             handler.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
         }
-
+        // 每隔一秒 扫描一次是不是有返回值需要 回调了；
         TimerTask timerTaskScanResponseTable = new TimerTask() {
             @Override
             public void run(Timeout timeout) {
@@ -241,7 +247,8 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
             }
         };
         this.timer.newTimeout(timerTaskScanResponseTable, 1000 * 3, TimeUnit.MILLISECONDS);
-
+        // 每隔`com.rocketmq.remoting.client.connect.timeout`秒(默认3秒)执行一次scanAvailableNameSrv，扫描NameSrv是否可用
+        // 如果不可用了，会移除掉
         int connectTimeoutMillis = this.nettyClientConfig.getConnectTimeoutMillis();
         TimerTask timerTaskScanAvailableNameSrv = new TimerTask() {
             @Override
@@ -476,7 +483,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
             LOGGER.error("closeChannel exception", e);
         }
     }
-
+    // 更新Namesrv地址, 这里是共用的；比如每个Namesrv这里传入的只会是自己的地址；各个客户端就是配置的地址
     @Override
     public void updateNameServerAddressList(List<String> addrs) {
         List<String> old = this.namesrvAddrList.get();
@@ -521,16 +528,21 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
     public RemotingCommand invokeSync(String addr, final RemotingCommand request, long timeoutMillis)
         throws InterruptedException, RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException {
         long beginStartTime = System.currentTimeMillis();
+        //这里传入的addr为null；所以会从当前的NameSrv中随机选择一个可用的通道返回
         final Channel channel = this.getAndCreateChannel(addr);
+        // 获取随机到的通道地址
         String channelRemoteAddr = RemotingHelper.parseChannelRemoteAddr(channel);
         if (channel != null && channel.isActive()) {
             try {
+                //执行 前缀钩子，有机会在这里插入自己自定义的属性；比如DynamicalExtFieldRPCHook就尝试在extFields里面配置"__ZONE_NAME"和 "__ZONE_MODE"
                 doBeforeRpcHooks(channelRemoteAddr, request);
                 long costTime = System.currentTimeMillis() - beginStartTime;
                 if (timeoutMillis < costTime) {
                     throw new RemotingTimeoutException("invokeSync call the addr[" + channelRemoteAddr + "] timeout");
                 }
+                //
                 RemotingCommand response = this.invokeSyncImpl(channel, request, timeoutMillis - costTime);
+                // 执行后缀钩子；
                 doAfterRpcHooks(channelRemoteAddr, request, response);
                 this.updateChannelLastResponseTime(addr);
                 return response;
@@ -606,7 +618,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
 
         return this.createChannel(addr);
     }
-
+    //在namesrv列表中随机选择地址，返回第一个可连接的地址通道
     private Channel getAndCreateNameserverChannel() throws InterruptedException {
         String addr = this.namesrvAddrChoosed.get();
         if (addr != null) {
@@ -626,7 +638,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                         return cw.getChannel();
                     }
                 }
-
+                // 在namesrv列表中随机选择地址，返回第一个可连接的地址通道
                 if (addrList != null && !addrList.isEmpty()) {
                     for (int i = 0; i < addrList.size(); i++) {
                         int index = this.namesrvIndex.incrementAndGet();
@@ -842,7 +854,8 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
             }
         }
     }
-
+    // 扫描是否存在不可用NameSrv，如果有则移除 (默认每隔三秒执行一次)
+    // 心跳监测
     private void scanAvailableNameSrv() {
         List<String> nameServerList = this.namesrvAddrList.get();
         if (nameServerList == null) {
@@ -856,7 +869,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                 NettyRemotingClient.this.availableNamesrvAddrMap.remove(address);
             }
         }
-
+        // 去探测每个NameSrv是否可链接；如果不可链接，则从availableNamesrvAddrMap移除
         for (final String namesrvAddr : nameServerList) {
             scanExecutor.execute(new Runnable() {
                 @Override

@@ -94,6 +94,7 @@ public class NamesrvController {
         this.nettyServerConfig = nettyServerConfig;
         this.nettyClientConfig = nettyClientConfig;
         this.kvConfigManager = new KVConfigManager(this);
+        // 通道监听器
         this.brokerHousekeepingService = new BrokerHousekeepingService(this);
         this.routeInfoManager = new RouteInfoManager(namesrvConfig, this);
         this.configuration = new Configuration(LOGGER, this.namesrvConfig, this.nettyServerConfig);
@@ -101,12 +102,19 @@ public class NamesrvController {
     }
 
     public boolean initialize() {
+        // 从路径为kvConfigPath的文件中读取数据, 加载并存储(configTable  HashMap)；例如：/Users/shizhenzhen/namesrv/kvConfig.json
         loadConfig();
+        //初始化Netty网络通信相关组件
         initiateNetworkComponents();
+        //初始化 默认线程池 和 客户端请求线程池clientRequestThreadPool
         initiateThreadExecutors();
+        // 注册处理器；注册默认处理器DefaultRequestProcessor；+ 针对RequestCode.GET_ROUTEINFO_BY_TOPIC这个请求也注册一个特殊处理器ClientRequestProcessor
         registerProcessor();
+        // 每隔5秒(可以通过配置scanNotActiveBrokerInterval设置)扫描不活动的Broker清理掉；每隔10分钟打印configTable
         startScheduleService();
+        //
         initiateSslContext();
+        // 给服务端注册一个钩子 ZoneRouteRPCHook
         initiateRpcHooks();
         return true;
     }
@@ -115,10 +123,12 @@ public class NamesrvController {
         this.kvConfigManager.load();
     }
 
+
     private void startScheduleService() {
+        // 扫描不活动的Broker；默认每隔5秒；可以通过配置scanNotActiveBrokerInterval设置
         this.scanExecutorService.scheduleAtFixedRate(NamesrvController.this.routeInfoManager::scanNotActiveBroker,
             5, this.namesrvConfig.getScanNotActiveBrokerInterval(), TimeUnit.MILLISECONDS);
-
+        // 每隔十分钟打印一下 configTable
         this.scheduledExecutorService.scheduleAtFixedRate(NamesrvController.this.kvConfigManager::printAllPeriodically,
             1, 10, TimeUnit.MINUTES);
 
@@ -158,7 +168,7 @@ public class NamesrvController {
         if (TlsSystemConfig.tlsMode == TlsMode.DISABLED) {
             return;
         }
-
+        // 监听跟 tls相关的各种文件；
         String[] watchFiles = {TlsSystemConfig.tlsServerCertPath, TlsSystemConfig.tlsServerKeyPath, TlsSystemConfig.tlsServerTrustCertPath};
 
         FileWatchService.Listener listener = new FileWatchService.Listener() {
@@ -220,6 +230,7 @@ public class NamesrvController {
         } else {
             // Support get route info only temporarily
             ClientRequestProcessor clientRequestProcessor = new ClientRequestProcessor(this);
+            // 针对RequestCode.GET_ROUTEINFO_BY_TOPIC这个请求,注册ClientRequestProcessor为处理器；
             this.remotingServer.registerProcessor(RequestCode.GET_ROUTEINFO_BY_TOPIC, clientRequestProcessor, this.clientRequestExecutor);
 
             this.remotingServer.registerDefaultProcessor(new DefaultRequestProcessor(this), this.defaultExecutor);
@@ -231,21 +242,32 @@ public class NamesrvController {
     }
 
     public void start() throws Exception {
+        // 启动服务端； 绑定监听地址和端口、定期监听过期Response并清理、每秒打印请求数量和发起的请求数量、启动事件监听器
         this.remotingServer.start();
 
         // In test scenarios where it is up to OS to pick up an available port, set the listening port back to config
         if (0 == nettyServerConfig.getListenPort()) {
             nettyServerConfig.setListenPort(this.remotingServer.localListenPort());
         }
-
+        // 更新一下 客户端的 namesrvAddrList ；(设置本地地址)
         this.remotingClient.updateNameServerAddressList(Collections.singletonList(NetworkUtil.getLocalAddress()
             + ":" + nettyServerConfig.getListenPort()));
+
+        /**
+         * 启动客户端
+         * 配置处理器
+         * 定时(默认每隔3秒)监测 NameSrv列表可用性
+         * 每秒扫描和过期已弃用的请求(执行回调函数)。
+         */
         this.remotingClient.start();
 
+
+        //文件监听器；监听文件是否有变更；有变更的话就执行监听器
+        // 这里是监听跟TLS相关的各种文件;
         if (this.fileWatchService != null) {
             this.fileWatchService.start();
         }
-
+        // 开启监听Broker卸载事件
         this.routeInfoManager.start();
     }
 

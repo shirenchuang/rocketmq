@@ -65,6 +65,12 @@ public class ServerUtil {
         hf.printHelp(appName, options, true);
     }
 
+    /**
+     * 将命令行中的数学解析成Properties
+     * 并且 短命令转换成了长命令。 比如 -n => namesrvAddr    -c=>configFile
+     * @param commandLine
+     * @return
+     */
     public static Properties commandLine2Properties(final CommandLine commandLine) {
         Properties properties = new Properties();
         Option[] opts = commandLine.getOptions();

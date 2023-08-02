@@ -110,6 +110,7 @@ public class RemotingServerTest {
         RemotingCommand request = RemotingCommand.createRequestCommand(0, null);
         request.setRemark("messi");
         remotingClient.invokeOneway("localhost:" + remotingServer.localListenPort(), request, 1000 * 3);
+
     }
 
     @Test
@@ -119,7 +120,8 @@ public class RemotingServerTest {
         final CountDownLatch latch = new CountDownLatch(1);
         RemotingCommand request = RemotingCommand.createRequestCommand(0, null);
         request.setRemark("messi");
-        remotingClient.invokeAsync("localhost:" + remotingServer.localListenPort(), request, 1000 * 3, new InvokeCallback() {
+        //remotingClient.invokeAsync("localhost:" + remotingServer.localListenPort(), request, 1000 * 300, new InvokeCallback() {
+        remotingClient.invokeAsync("localhost:" + 10911, request, 1000 * 300, new InvokeCallback() {
             @Override
             public void operationComplete(ResponseFuture responseFuture) {
                 latch.countDown();

@@ -254,7 +254,10 @@ public class MQClientAPIImpl implements NameServerUpdateCallback {
             this.remotingClient.registerRPCHook(new StreamTypeRPCHook());
         }
         this.remotingClient.registerRPCHook(rpcHook);
+        // 尝试在ExtField中新增__ZONE_NAME 和 __ZONE_MODE
         this.remotingClient.registerRPCHook(new DynamicalExtFieldRPCHook());
+
+        // 将下面指定的请求Code，注册到clientRemotingProcessor处理器中；
         this.remotingClient.registerProcessor(RequestCode.CHECK_TRANSACTION_STATE, this.clientRemotingProcessor, null);
 
         this.remotingClient.registerProcessor(RequestCode.NOTIFY_CONSUMER_IDS_CHANGED, this.clientRemotingProcessor, null);
