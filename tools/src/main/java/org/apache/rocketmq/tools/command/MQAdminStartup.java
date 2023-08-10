@@ -113,7 +113,7 @@ public class MQAdminStartup {
     public static void main(String[] args) {
        // args = new String[]{"help","updateTopic"};
        // args = new String[]{"updateTopic","-n=127.0.0.1:9876","-t=szz_t2","-c=szz_cluster_test","-r=1","-w=1"};
-        args = new String[]{"updateTopic","-n=127.0.0.1:9876","-t=szz_t5","-c=szz_cluster_a","-r=2","-w=2"};
+        args = new String[]{"updateTopic","-n=127.0.0.1:9876","-t=szz_t5","-c=szz_cluster_a","-r=2","-w=2","-a=+key1=value1,+key2=value2"};
         main0(args, null);
 
     }
