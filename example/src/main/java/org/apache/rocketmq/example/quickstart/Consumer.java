@@ -33,10 +33,17 @@ public class Consumer {
 
     public static void main(String[] args) throws MQClientException {
 
+        String topic = "SZZ-SyncMsg";
+        String tag = "Tag-SZZ";
+        String groupName = "szz_producer_group";
+
+
         /*
          * Instantiate with specified consumer group name.
          */
-        DefaultMQPushConsumer consumer = new DefaultMQPushConsumer(CONSUMER_GROUP);
+        DefaultMQPushConsumer consumer = new DefaultMQPushConsumer(groupName,true);
+
+
 
         /*
          * Specify name server addresses.
@@ -50,7 +57,7 @@ public class Consumer {
          * </pre>
          */
         // Uncomment the following line while debugging, namesrvAddr should be set to your local address
-//        consumer.setNamesrvAddr(DEFAULT_NAMESRVADDR);
+        consumer.setNamesrvAddr(DEFAULT_NAMESRVADDR);
 
         /*
          * Specify where to start in case the specific consumer group is a brand-new one.
@@ -60,7 +67,7 @@ public class Consumer {
         /*
          * Subscribe one more topic to consume.
          */
-        consumer.subscribe(TOPIC, "*");
+        consumer.subscribe(topic, "*");
 
         /*
          *  Register callback to execute on arrival of messages fetched from brokers.

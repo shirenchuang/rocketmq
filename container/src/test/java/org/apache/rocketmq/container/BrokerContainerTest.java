@@ -125,7 +125,7 @@ public class BrokerContainerTest {
 
         List<TopicConfig> topicConfigList = new ArrayList<>(2);
         for (int i = 0; i < 2; i++) {
-            topicConfigList.add(new TopicConfig("topic-" + i));
+            topicConfigList.add(new TopicConfig("topic-" + i,4,4,2));
         }
         DataVersion dataVersion = new DataVersion();
 

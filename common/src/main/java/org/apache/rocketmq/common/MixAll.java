@@ -191,7 +191,7 @@ public class MixAll {
 
         String bakFile = fileName + ".bak";
         String prevContent = file2String(fileName);
-        if (prevContent != null) {
+        if (prevContent != null) {//将原来的文件备份一下
             string2FileNotSafe(prevContent, bakFile);
         }
 

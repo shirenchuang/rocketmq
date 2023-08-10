@@ -53,7 +53,8 @@ public class BrokerStartup {
         System.setProperty("rocketmq.zone","szz_zone");
         System.setProperty("rocketmq.zone.mode","szz_mode");
 
-        args = new String[]{"-c=/Users/shizhenzhen/IdeaProjects/OpenSource/rocketmq/distribution/conf/szz/szz_broker_a_m.conf"};
+        //args = new String[]{"-c=/Users/shizhenzhen/IdeaProjects/OpenSource/rocketmq/distribution/conf/szz/szz_broker_a_m.conf"};
+        //args = new String[]{"-c=/Users/shizhenzhen/IdeaProjects/OpenSource/rocketmq/distribution/conf/szz/szz_broker_b_m.conf"};
 
 
         start(createBrokerController(args));

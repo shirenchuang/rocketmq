@@ -73,7 +73,7 @@ public class SendMessageTraceHookImpl implements SendMessageHook {
         if (context.getSendResult() == null) {
             return;
         }
-
+        // 判断一下Broker是否开启了Trace 消息轨迹
         if (context.getSendResult().getRegionId() == null
             || !context.getSendResult().isTraceOn()) {
             // if switch is false,skip it

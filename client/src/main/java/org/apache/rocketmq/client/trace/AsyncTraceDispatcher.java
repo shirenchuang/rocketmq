@@ -162,14 +162,14 @@ public class AsyncTraceDispatcher implements TraceDispatcher {
         if (traceProducerInstance == null) {
             traceProducerInstance = new DefaultMQProducer(rpcHook);
             traceProducerInstance.setProducerGroup(genGroupNameForTrace());
-            traceProducerInstance.setSendMsgTimeout(5000);
+            traceProducerInstance.setSendMsgTimeout(20000);//这里5改成了20 方便调试
             traceProducerInstance.setVipChannelEnabled(false);
             // The max size of message is 128K
             traceProducerInstance.setMaxMessageSize(maxMsgSize);
         }
         return traceProducerInstance;
     }
-
+    // 拼接 消息轨迹的DefaultMqProducer的生产者组；
     private String genGroupNameForTrace() {
         return TraceConstants.GROUP_NAME_PREFIX + "-" + this.group + "-" + this.type + "-" + COUNTER.incrementAndGet();
     }

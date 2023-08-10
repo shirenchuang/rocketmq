@@ -1694,12 +1694,12 @@ public class BrokerController {
             .map(topicConfig -> {
                 TopicConfig registerTopicConfig;
                 if (!PermName.isWriteable(this.getBrokerConfig().getBrokerPermission())
-                    || !PermName.isReadable(this.getBrokerConfig().getBrokerPermission())) {
+                    || !PermName.isReadable(this.getBrokerConfig().getBrokerPermission())) {// 应该取交集吧？
                     registerTopicConfig =
                         new TopicConfig(topicConfig.getTopicName(),
                             topicConfig.getReadQueueNums(),
                             topicConfig.getWriteQueueNums(),
-                            this.brokerConfig.getBrokerPermission(), topicConfig.getTopicSysFlag());
+                                topicConfig.getPerm() & this.brokerConfig.getBrokerPermission(), topicConfig.getTopicSysFlag());
                 } else {
                     registerTopicConfig = new TopicConfig(topicConfig);
                 }

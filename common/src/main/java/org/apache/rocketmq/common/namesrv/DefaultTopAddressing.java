@@ -88,6 +88,7 @@ public class DefaultTopAddressing implements TopAddressing {
         // 如果用户通过SPI 自定义了TopAddressing，则便利这些TopAddressing，直到获取到第一个nsAddress返回
         if (!topAddressingList.isEmpty()) {
             for (TopAddressing topAddressing : topAddressingList) {
+                // 调用用户自定义的SPI
                 String nsAddress = topAddressing.fetchNSAddr();
                 if (!Strings.isNullOrEmpty(nsAddress)) {
                     return nsAddress;

@@ -278,7 +278,7 @@ public class MQClientInstance {
             }
         }
     }
-
+    // 如果NameSrv不是直接配置确定的地址，则会每隔2分钟定时去NameSrv地址服务器获取NameSrv地址
     private void startScheduledTask() {
         if (null == this.clientConfig.getNamesrvAddr()) {
             this.scheduledExecutorService.scheduleAtFixedRate(() -> {
@@ -289,7 +289,7 @@ public class MQClientInstance {
                 }
             }, 1000 * 10, 1000 * 60 * 2, TimeUnit.MILLISECONDS);
         }
-
+        // 每隔pollNameServerInterval（默认30s）更新Topic的路由信息
         this.scheduledExecutorService.scheduleAtFixedRate(() -> {
             try {
                 MQClientInstance.this.updateTopicRouteInfoFromNameServer();
@@ -297,7 +297,7 @@ public class MQClientInstance {
                 log.error("ScheduledTask updateTopicRouteInfoFromNameServer exception", e);
             }
         }, 10, this.clientConfig.getPollNameServerInterval(), TimeUnit.MILLISECONDS);
-
+        //每隔heartbeatBrokerInterval(默认30s) 清理离线Broker和给其他Broker发送心跳
         this.scheduledExecutorService.scheduleAtFixedRate(() -> {
             try {
                 MQClientInstance.this.cleanOfflineBroker();

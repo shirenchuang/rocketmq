@@ -568,7 +568,7 @@ public class TopicConfigManager extends ConfigManager {
     }
 
     @Override
-    public String configFilePath() {
+    public String configFilePath() {// 拼接topic配置存储路径  {storePath}/config/topics.json
         return BrokerPathConfigHelper.getTopicConfigPath(this.brokerController.getMessageStoreConfig().getStorePathRootDir());
     }
 

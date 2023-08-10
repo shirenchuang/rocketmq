@@ -20,6 +20,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import org.apache.commons.collections.MapUtils;
 import org.apache.rocketmq.client.exception.MQClientException;
+import org.apache.rocketmq.client.hook.*;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
 import org.apache.rocketmq.client.producer.SendResult;
 import org.apache.rocketmq.common.message.Message;
@@ -134,7 +135,8 @@ public class Producer {
 
     public static void main(String[] args) {
         try {
-            sendSyncMsg();
+            //sendSyncMsg(args);
+            sendSyncMsgTestHooks(args);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -147,19 +149,33 @@ public class Producer {
      * @throws InterruptedException
      * @throws UnsupportedEncodingException
      */
-    public static void sendSyncMsg() throws MQClientException, InterruptedException, UnsupportedEncodingException {
-        String topic = "SZZ-SyncMsg";
+    public static void sendSyncMsg(String[] args) throws MQClientException, InterruptedException, UnsupportedEncodingException {
+
+
+        // 第四种方式
+        // System.setProperty("rocketmq.namesrv.domain","127.0.0.1:7003");
+        //System.setProperty("rocketmq.namesrv.domain.subgroup","getnsaddr");
+
+
+        //String topic = "SZZ-SyncMsg";
+        String topic = "szz_test_4";
         String tag = "Tag-SZZ";
         String groupName = "szz_producer_group";
         // 设置自定义Hook 和 开启消息轨迹
-        DefaultMQProducer producer = new DefaultMQProducer(groupName, new SzzProducerRPCHook(),false,null);
+        DefaultMQProducer producer = new DefaultMQProducer(groupName, new SzzProducerRPCHook(), true, null);
         // 可以通过  系统变量rocketmq.namesrv.addr > 环境变量：NAMESRV_ADDR 设置 ；
-       // producer.setNamesrvAddr(DEFAULT_NAMESRVADDR);
-        producer.setNamesrvAddr("http://jmenv.tbsite.net:8080/rocketmq/nsaddr");
+        producer.setNamesrvAddr(DEFAULT_NAMESRVADDR);
+        //producer.setNamesrvAddr("http://jmenv.tbsite.net:8080/rocketmq/nsaddr");
+
+
+        //producer.setUnitName("szz_unitname");
+
         // 如果设置了 命名空间的话, 最终的ProducerGroup为【${namespace}%groupName】 例如： szz_daily%szz_producer_group
         //producer.setNamespace("szz_daily");
         // 设置生产者客户端实例名称; 可以通过系统属性`rocketmq.client.name` 设置，没有设置的话默认DEFAULT; 但是启动的时候判断如果是DEFAULT，则将它改成：PID@时间戳
         producer.setInstanceName("szz-producer-cliendName");
+
+
         producer.start();
 
        /* DefaultMQProducer producer2 = new DefaultMQProducer(groupName);
@@ -167,11 +183,14 @@ public class Producer {
         producer2.start();
 */
 
-        Message msg = new Message(topic, tag,
+        Message msg = new Message(topic, tag, "szzkey",
                 (" I'm 石臻臻, timestamp:" + System.currentTimeMillis()).getBytes(RemotingHelper.DEFAULT_CHARSET)
         );
 
+        msg.setDelayTimeLevel(5);
+
         try {
+            producer.setSendMsgTimeout(25000);
             SendResult sendResult = producer.send(msg);
             System.out.println(JSONObject.toJSONString(sendResult, SerializerFeature.WriteMapNullValue));
         } catch (Exception e) {
@@ -182,25 +201,136 @@ public class Producer {
     }
 
 
+    public static void sendSyncMsgTestHooks(String[] args) throws MQClientException, InterruptedException, UnsupportedEncodingException {
+
+        String topic = "szz_test_hooks";
+        String tag = "Tag-SZZ-HOOK";
+        String groupName = "szz_producer_group_hook";
+        // 设置自定义Hook 和 开启消息轨迹
+        DefaultMQProducer producer = new DefaultMQProducer(groupName, new SzzProducerRPCHook(), true, null);
+        producer.setNamesrvAddr(DEFAULT_NAMESRVADDR);
+        // 如果设置了 命名空间的话, 最终的ProducerGroup为【${namespace}%groupName】 例如： szz_daily%szz_producer_group
+        // 设置生产者客户端实例名称; 可以通过系统属性`rocketmq.client.name` 设置，没有设置的话默认DEFAULT; 但是启动的时候判断如果是DEFAULT，则将它改成：PID@时间戳
+        producer.setInstanceName("szz-producer-cliendName");
+
+        producer.getDefaultMQProducerImpl().registerSendMessageHook(new SzzMessageHook());
+        producer.getDefaultMQProducerImpl().registerCheckForbiddenHook(new SzzForbiddenMessageHook());
+        producer.getDefaultMQProducerImpl().registerEndTransactionHook(new SzzEndTransactionHook());
+
+        producer.setMqClientApiTimeout(300000);
+        producer.start();
+
+        Message msg = new Message(topic, tag, "szzkey",
+                (" I'm 石臻臻-HOOK, timestamp:" + System.currentTimeMillis()).getBytes(RemotingHelper.DEFAULT_CHARSET)
+        );
+        //延时消息
+        //msg.setDelayTimeLevel(5);
+
+        try {
+            producer.setSendMsgTimeout(25000);
+            SendResult sendResult = producer.send(msg);
+            System.out.println(JSONObject.toJSONString(sendResult, SerializerFeature.WriteMapNullValue));
+        } catch (Exception e) {
+            e.printStackTrace();
+            Thread.sleep(1000);
+        }
+
+    }
+
+
+
     public static class SzzProducerRPCHook implements RPCHook {
 
         @Override
         public void doBeforeRequest(String remoteAddr, RemotingCommand request) {
             // 判断一下发送之前的消息体是不是太大了
-            if (request.getBody()!=null && request.getBody().length > 10) {
-                System.out.println("生产者钩子SzzProducerRPCHook, 执行了doBeforeRequest , 消息体太大啦,目前大小： " + request.getBody().length);
+            if (request.getBody() != null && request.getBody().length > 10) {
+                System.out.println("我是生产者钩子SzzProducerRPCHook, 执行了doBeforeRequest ... " );
             }
         }
 
         @Override
         public void doAfterResponse(String remoteAddr, RemotingCommand request, RemotingCommand response) {
-            // 打印一下 Ext属性
-            System.out.println("生产者钩子SzzProducerRPCHook, 执行了doAfterResponse .... ");
+            System.out.println("我是生产者钩子SzzProducerRPCHook, 执行了doAfterResponse .... ");
 
-            if(MapUtils.isNotEmpty( response.getExtFields())){
-                response.getExtFields().entrySet().forEach(entry -> System.out.println(entry.getKey() + ":" + entry.getValue()));
+            // 打印一下 Ext属性
+            if (MapUtils.isNotEmpty(response.getExtFields())) {
+                //response.getExtFields().entrySet().forEach(entry -> System.out.println(entry.getKey() + ":" + entry.getValue()));
             }
         }
     }
+
+
+    public static class SzzMessageHook implements SendMessageHook {
+
+        @Override
+        public String hookName() {
+            return "SzzMessageHook";
+        }
+
+        @Override
+        public void sendMessageBefore(SendMessageContext context) {
+
+            System.out.println("SzzMessageHook#sendMessageBefore.....");
+        }
+
+        @Override
+        public void sendMessageAfter(SendMessageContext context) {
+            System.out.println("SzzMessageHook#sendMessageAfter.....");
+
+        }
+    }
+
+    // 消费者
+    public static class SzzFilterMessageHook implements FilterMessageHook {
+
+
+        @Override
+        public String hookName() {
+            return "SzzFilterMessageHook";
+        }
+
+        @Override
+        public void filterMessage(FilterMessageContext context) {
+            System.out.println("SzzFilterMessageHook#filterMessage.....");
+
+        }
+
+    }
+
+    public static class SzzForbiddenMessageHook implements CheckForbiddenHook {
+
+
+        @Override
+        public String hookName() {
+            return "SzzForbiddenMessageHook";
+        }
+
+        @Override
+        public void checkForbidden(CheckForbiddenContext context) throws MQClientException {
+            System.out.println("SzzForbiddenMessageHook#checkForbidden.....");
+
+        }
+    }
+
+
+    public static class SzzEndTransactionHook implements EndTransactionHook {
+
+
+        @Override
+        public String hookName() {
+            return "SzzEndTransactionHook";
+        }
+
+        @Override
+        public void endTransaction(EndTransactionContext context) {
+            System.out.println("SzzEndTransactionHook#endTransaction.....");
+
+        }
+    }
+
+
+
+
 
 }

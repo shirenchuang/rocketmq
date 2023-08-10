@@ -99,7 +99,10 @@ public class DefaultMQProducerImpl implements MQProducerInner {
 
     private final Logger log = LoggerFactory.getLogger(DefaultMQProducerImpl.class);
     private final Random random = new Random();
+
+    // 这个主要是用于获取生产者的配置的
     private final DefaultMQProducer defaultMQProducer;
+    // 发布的Topic集合，以及对应的发布信息
     private final ConcurrentMap<String/* topic */, TopicPublishInfo> topicPublishInfoTable =
         new ConcurrentHashMap<>();
     private final ArrayList<SendMessageHook> sendMessageHookList = new ArrayList<>();
@@ -411,6 +414,11 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         this.checkExecutor.submit(request);
     }
 
+    /**
+     * 更新topic发布信息; MQClientInstance会去更新
+     * @param topic
+     * @param info
+     */
     @Override
     public void updateTopicPublishInfo(final String topic, final TopicPublishInfo info) {
         if (info != null && topic != null) {
@@ -726,7 +734,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         }
 
         validateNameServerSetting();
-
+        //  消息发送失败，因为没有获取到发送Topic的路由信息
         throw new MQClientException("No route info of this topic: " + msg.getTopic() + FAQUrl.suggestTodo(FAQUrl.NO_TOPIC_ROUTE_INFO),
             null).setResponseCode(ClientErrorCode.NOT_FOUND_TOPIC_EXCEPTION);
     }

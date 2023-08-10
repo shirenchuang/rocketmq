@@ -82,7 +82,7 @@ public abstract class ConfigManager {
         String jsonString = this.encode(true);
         if (jsonString != null) {
             String fileName = this.configFilePath();
-            try {
+            try {// 将jsonString存储到 指定的文件中
                 MixAll.string2File(jsonString, fileName);
             } catch (IOException e) {
                 log.error("persist file " + fileName + " exception", e);

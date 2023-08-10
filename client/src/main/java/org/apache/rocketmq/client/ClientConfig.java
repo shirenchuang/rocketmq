@@ -215,7 +215,7 @@ public class ClientConfig {
         cc.useHeartbeatV2 = useHeartbeatV2;
         return cc;
     }
-
+    // 如果是域名形式的，则将http:// 去掉，只留下 域名:PORT
     public String getNamesrvAddr() {
         if (StringUtils.isNotEmpty(namesrvAddr) && NameServerAddressUtils.NAMESRV_ENDPOINT_PATTERN.matcher(namesrvAddr.trim()).matches()) {
             return NameServerAddressUtils.getNameSrvAddrFromNamesrvEndpoint(namesrvAddr);
