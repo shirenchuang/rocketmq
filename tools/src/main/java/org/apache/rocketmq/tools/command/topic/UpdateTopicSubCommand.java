@@ -170,8 +170,16 @@ public class UpdateTopicSubCommand implements SubCommand {
                 Set<String> masterSet =
                     CommandUtil.fetchMasterAddrByClusterName(defaultMQAdminExt, clusterName);
                 for (String addr : masterSet) {
-                    defaultMQAdminExt.createAndUpdateTopicConfig(addr, topicConfig);
-                    System.out.printf("create topic to %s success.%n", addr);
+                    try {
+                        if(addr.contains("10921")){
+                            throw new IllegalArgumentException();
+                        }
+                        // 这里遍历请求，假设有一个请求异常了，则会阻断所有；这里感觉可以改成: 便利过程中的异常不影响其他Broker的创建；然后把成功的和失败的都打印出来
+                        defaultMQAdminExt.createAndUpdateTopicConfig(addr, topicConfig);
+                        System.out.printf("create topic to %s success.%n", addr);
+                    }catch (Exception e){
+                        System.err.printf("create topic to %s fail.%n", addr);
+                    }
                 }
 
                 if (isOrder) {
