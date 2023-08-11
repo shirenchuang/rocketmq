@@ -145,7 +145,8 @@ public class UpdateTopicSubCommand implements SubCommand {
             }
             topicConfig.setOrder(isOrder);
 
-            if (commandLine.hasOption('b')) {// 如果指定了Broker，就不会判断集群-c了
+            //// 如果指定了Broker，就不会判断集群-c了
+            if (commandLine.hasOption('b')) {
                 String addr = commandLine.getOptionValue('b').trim();
 
                 defaultMQAdminExt.start();
