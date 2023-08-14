@@ -44,6 +44,7 @@ public class InnerBrokerController extends BrokerController {
     @Override
     protected void initializeRemotingServer() {
         this.remotingServer = this.brokerContainer.getRemotingServer().newRemotingServer(brokerConfig.getListenPort());
+        // 这个fastRemoting 就是  客户端设置的vipChannelEnabled 链接的VIP通道
         this.fastRemotingServer = this.brokerContainer.getRemotingServer().newRemotingServer(brokerConfig.getListenPort() - 2);
     }
 

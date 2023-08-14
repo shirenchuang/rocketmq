@@ -28,6 +28,8 @@ public class NameServerAddressUtilsTest {
     private static String endpoint3
         = "http://MQ_INST_123456789_BXXUzaee.xxx:80";
     private static String endpoint4 = "MQ_INST_123456789_BXXUzaee.xxx:80";
+    private static String endpoint5 = "MQ_INST_PRE.rocketmq:80";
+
 
     @Test
     public void testValidateInstanceEndpoint() {
@@ -43,6 +45,8 @@ public class NameServerAddressUtilsTest {
             "MQ_INST_123456789_BXXUzaee");
         assertThat(NameServerAddressUtils.parseInstanceIdFromEndpoint(endpoint4)).isEqualTo(
             "MQ_INST_123456789_BXXUzaee");
+
+
     }
 
     @Test

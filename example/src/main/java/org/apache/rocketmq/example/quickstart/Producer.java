@@ -23,16 +23,9 @@ import org.apache.rocketmq.client.exception.MQBrokerException;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.hook.*;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
-import org.apache.rocketmq.client.producer.MessageQueueSelector;
 import org.apache.rocketmq.client.producer.SendCallback;
 import org.apache.rocketmq.client.producer.SendResult;
-import org.apache.rocketmq.client.producer.selector.SelectMessageQueueByHash;
-import org.apache.rocketmq.client.producer.selector.SelectMessageQueueByRandom;
-import org.apache.rocketmq.common.ThreadFactoryImpl;
 import org.apache.rocketmq.common.message.Message;
-import org.apache.rocketmq.common.message.MessageClientIDSetter;
-import org.apache.rocketmq.common.message.MessageConst;
-import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.remoting.RPCHook;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 import org.apache.rocketmq.remoting.exception.RemotingException;
@@ -42,11 +35,6 @@ import org.apache.rocketmq.remoting.exception.RemotingTooMuchRequestException;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
 import java.io.UnsupportedEncodingException;
-import java.util.List;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 
 /**
  * This class demonstrates how to send messages to brokers using provided {@link DefaultMQProducer}.
@@ -163,26 +151,28 @@ public class Producer {
         }
     }
 
+    public static void sendOrderlyMsg() throws MQClientException {
+        DefaultMQProducer producer = new DefaultMQProducer("group_orderly");
+        producer.setNamesrvAddr(DEFAULT_NAMESRVADDR);
+        producer.start();
+
+        Message msg = new Message("orderly_topic","tag","key","顺序消息啊".getBytes());
+
+
+    }
+
 
     public static void sendMsg2Producer(String[] args) throws MQClientException, MQBrokerException, RemotingException, InterruptedException {
 
-        DefaultMQProducer producer2 = new DefaultMQProducer("group2");
-        producer2.setNamesrvAddr(DAILY_NAMESRVADDR);
-        producer2.start();
+
 
 
         DefaultMQProducer producer1 = new DefaultMQProducer("group1");
-        producer1.setNamesrvAddr(DEFAULT_NAMESRVADDR);
+        producer1.setNamesrvAddr("http://MQ_INST_DAILY.rocketmq:9876");
 
         producer1.start();
 
-        try {
-            producer2.send(new Message("producer2_topic2","hello DAILY_NAMESRVADDR".getBytes()));
-            System.out.println("producer2:success");
 
-        }catch (Exception e){
-            System.out.println("producer2:"+e.getMessage());
-        }
 
         try {
             producer1.send(new Message("producer1_topic1","hello DEFAULT_NAMESRVADDR".getBytes()));
@@ -190,7 +180,7 @@ public class Producer {
 
         }catch (Exception e){
 
-            System.out.println("producer:"+e.getMessage());
+            System.out.println("producer1:"+e.getMessage());
         }
 
 

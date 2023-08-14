@@ -26,7 +26,7 @@ public class NameServerAddressUtils {
     public static String getNameServerAddresses() {
         return System.getProperty(MixAll.NAMESRV_ADDR_PROPERTY, System.getenv(MixAll.NAMESRV_ADDR_ENV));
     }
-
+    // 验证endpoint是否满足 Namespace的方式
     public static boolean validateInstanceEndpoint(String endpoint) {
         return INST_ENDPOINT_PATTERN.matcher(endpoint).matches();
     }

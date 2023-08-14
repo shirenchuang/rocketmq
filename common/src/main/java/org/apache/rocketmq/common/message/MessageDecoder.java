@@ -487,7 +487,7 @@ public class MessageDecoder {
                         }
                     }
 
-                    // uncompress body
+                    // uncompress body  解压缩
                     if (deCompressBody && (sysFlag & MessageSysFlag.COMPRESSED_FLAG) == MessageSysFlag.COMPRESSED_FLAG) {
                         Compressor compressor = CompressorFactory.getCompressor(MessageSysFlag.getCompressionType(sysFlag));
                         body = compressor.decompress(body);
