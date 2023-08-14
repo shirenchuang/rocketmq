@@ -654,9 +654,11 @@ public class MQClientAPIImpl implements NameServerUpdateCallback {
                 public void operationComplete(ResponseFuture responseFuture) {
                     long cost = System.currentTimeMillis() - beginStartTime;
                     RemotingCommand response = responseFuture.getResponseCommand();
-                    if (null == sendCallback && response != null) {
+                    if (null == sendCallback && response != null) {//没有设置回调函数并且有返回值
 
-                        try {
+                        try {// 没有设置回调，异常不会重试
+                            //如果抛出了异常(code不是：ResponseCode.FLUSH_DISK_TIMEOUT、FLUSH_SLAVE_TIMEOUT、SLAVE_NOT_AVAILABLE、SUCCESS)，
+                            // 则不执行SendMessageHookAfter了
                             SendResult sendResult = MQClientAPIImpl.this.processSendResponse(brokerName, msg, response, addr);
                             if (context != null && sendResult != null) {
                                 context.setSendResult(sendResult);
@@ -669,27 +671,30 @@ public class MQClientAPIImpl implements NameServerUpdateCallback {
                         return;
                     }
 
-                    if (response != null) {
+                    if (response != null) {// 设置了回调并且有返回值
                         try {
                             SendResult sendResult = MQClientAPIImpl.this.processSendResponse(brokerName, msg, response, addr);
                             assert sendResult != null;
-                            if (context != null) {
+                            if (context != null) {//执行SendMessageHookAfter
                                 context.setSendResult(sendResult);
                                 context.getProducer().executeSendMessageHookAfter(context);
                             }
 
                             try {
+                                // 执行自定义回调,忽略它的异常，不影响主流程；
                                 sendCallback.onSuccess(sendResult);
                             } catch (Throwable e) {
                             }
 
                             producer.updateFaultItem(brokerName, System.currentTimeMillis() - responseFuture.getBeginTimestamp(), false);
                         } catch (Exception e) {
+                            //在处理 Response的时候抛出了异常(code不是：ResponseCode.FLUSH_DISK_TIMEOUT、FLUSH_SLAVE_TIMEOUT、SLAVE_NOT_AVAILABLE、SUCCESS)，
+                            // 也是不会重试
                             producer.updateFaultItem(brokerName, System.currentTimeMillis() - responseFuture.getBeginTimestamp(), true);
                             onExceptionImpl(brokerName, msg, timeoutMillis - cost, request, sendCallback, topicPublishInfo, instance,
                                 retryTimesWhenSendFailed, times, e, context, false, producer);
                         }
-                    } else {
+                    } else {// 只要没有返回值，请求失败才会重试
                         producer.updateFaultItem(brokerName, System.currentTimeMillis() - responseFuture.getBeginTimestamp(), true);
                         if (!responseFuture.isSendRequestOK()) {
                             MQClientException ex = new MQClientException("send request failed", responseFuture.getCause());

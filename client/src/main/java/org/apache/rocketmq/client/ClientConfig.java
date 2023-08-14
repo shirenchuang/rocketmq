@@ -121,6 +121,8 @@ public class ClientConfig {
 
     public void changeInstanceNameToPID() {
         if (this.instanceName.equals("DEFAULT")) {
+            // 拼接System.nanoTime() ；是为了同一套代码创建多个Producer实例的时候会出现异常；
+            // 只会用第一次创建的实例;
             this.instanceName = UtilAll.getPid() + "#" + System.nanoTime();
         }
     }

@@ -64,16 +64,18 @@ public class MQFaultStrategy {
                 for (int i = 0; i < tpInfo.getMessageQueueList().size(); i++) {
                     int pos = index++ % tpInfo.getMessageQueueList().size();
                     MessageQueue mq = tpInfo.getMessageQueueList().get(pos);
+                    // 不选择上次异常Broker的队列  不选择 在一段时间内不可用的Broker队列
                     if (!StringUtils.equals(lastBrokerName, mq.getBrokerName()) && latencyFaultTolerance.isAvailable(mq.getBrokerName())) {
                         return mq;
                     }
                 }
-
+                // 如果上面没有选择出来(说明Broker都在故障中)  则  在 剩余故障时间最短的一半Broker里面 随机选择一个Broker
                 final String notBestBroker = latencyFaultTolerance.pickOneAtLeast();
                 int writeQueueNums = tpInfo.getWriteQueueIdByBroker(notBestBroker);
                 if (writeQueueNums > 0) {
                     final MessageQueue mq = tpInfo.selectOneMessageQueue();
                     if (notBestBroker != null) {
+                        // 设置选中的Broker，并随机选择一个队列
                         mq.setBrokerName(notBestBroker);
                         mq.setQueueId(tpInfo.getSendWhichQueue().incrementAndGet() % writeQueueNums);
                     }
@@ -84,10 +86,10 @@ public class MQFaultStrategy {
             } catch (Exception e) {
                 log.error("Error occurred when selecting message queue", e);
             }
-
+            // 如果 故障规避 没有选择出来，则从所有队列中选择一个队列
             return tpInfo.selectOneMessageQueue();
         }
-
+        //默认的策略
         return tpInfo.selectOneMessageQueue(lastBrokerName);
     }
 

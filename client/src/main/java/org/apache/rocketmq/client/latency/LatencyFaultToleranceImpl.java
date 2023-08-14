@@ -38,6 +38,9 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
             faultItem.setStartTimestamp(System.currentTimeMillis() + notAvailableDuration);
 
             old = this.faultItemTable.putIfAbsent(name, faultItem);
+            System.out.printf("Test-故障延迟机制：新增的Broker故障延迟 BrokerName: %s ,startTimes又延迟到了 %s 毫秒",name,notAvailableDuration);
+            System.out.println();
+
             if (old != null) {
                 old.setCurrentLatency(currentLatency);
                 old.setStartTimestamp(System.currentTimeMillis() + notAvailableDuration);
@@ -45,6 +48,8 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
         } else {
             old.setCurrentLatency(currentLatency);
             old.setStartTimestamp(System.currentTimeMillis() + notAvailableDuration);
+
+            System.out.printf("Test-故障延迟机制：BrokerName: %s ,startTimes又延迟到了 %s 毫秒",name,notAvailableDuration);
         }
     }
 
@@ -70,6 +75,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
             final FaultItem faultItem = elements.nextElement();
             tmpList.add(faultItem);
         }
+        // 排序，剩余故障时间短的排前面；在前面一半的Broker里面随机选择一个
         if (!tmpList.isEmpty()) {
             Collections.sort(tmpList);
             final int half = tmpList.size() / 2;

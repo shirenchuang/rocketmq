@@ -569,6 +569,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
 
             executor.submit(runnable);
         } catch (RejectedExecutionException e) {
+            // 如果线程池的阻塞队列都满了，就抛出异常了(如果开启了isEnableBackpressureForAsyncMode，则会直接使用当前线程执行)
             if (isEnableBackpressureForAsyncMode) {
                 runnable.run();
             } else {
@@ -588,7 +589,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     public MessageQueue selectOneMessageQueue(final TopicPublishInfo tpInfo, final String lastBrokerName) {
         return this.mqFaultStrategy.selectOneMessageQueue(tpInfo, lastBrokerName);
     }
-
+    // isolation 为true的情况，默认耗时30000毫米，基本上对应的最大一档了
     public void updateFaultItem(final String brokerName, final long currentLatency, boolean isolation) {
         this.mqFaultStrategy.updateFaultItem(brokerName, currentLatency, isolation);
     }
@@ -645,6 +646,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
 
                         sendResult = this.sendKernelImpl(msg, mq, communicationMode, sendCallback, topicPublishInfo, timeout - costTime);
                         endTimestamp = System.currentTimeMillis();
+                        // 查看请求耗时时间，根据耗时时间来判断 这个Broker是否需要规避请求，以及规避时间多久；例如如果耗时超过了550L毫秒，就将这台Broker设置规避访问30000毫秒
                         this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false);
                         switch (communicationMode) {
                             case ASYNC:
@@ -663,8 +665,9 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                             default:
                                 break;
                         }
-                    } catch (RemotingException | MQClientException e) {
+                    } catch (RemotingException | MQClientException e) {// 网络连接失败，或者Broker不存在
                         endTimestamp = System.currentTimeMillis();
+                        // 将该Broker规避10分钟（默认情况）
                         this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, true);
                         log.warn("sendKernelImpl exception, resend at once, InvokeID: %s, RT: %sms, Broker: %s", invokeID, endTimestamp - beginTimestampPrev, mq, e);
                         if (log.isDebugEnabled()) {
@@ -674,6 +677,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                         continue;
                     } catch (MQBrokerException e) {
                         endTimestamp = System.currentTimeMillis();
+                        // 将该Broker规避10分钟（默认情况）
                         this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, true);
                         log.warn("sendKernelImpl exception, resend at once, InvokeID: %s, RT: %sms, Broker: %s", invokeID, endTimestamp - beginTimestampPrev, mq, e);
                         if (log.isDebugEnabled()) {
@@ -692,6 +696,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                         }
                     } catch (InterruptedException e) {
                         endTimestamp = System.currentTimeMillis();
+                        // 计算本次请求耗费的时长，计算它对应的故障时长
                         this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false);
                         log.warn("sendKernelImpl exception, throw exception, InvokeID: %s, RT: %sms, Broker: %s", invokeID, endTimestamp - beginTimestampPrev, mq, e);
                         if (log.isDebugEnabled()) {

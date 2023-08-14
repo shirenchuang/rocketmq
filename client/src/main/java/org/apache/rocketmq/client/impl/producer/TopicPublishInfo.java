@@ -70,7 +70,7 @@ public class TopicPublishInfo {
         if (lastBrokerName == null) {
             // 轮训队列，选择下一个队列
             return selectOneMessageQueue();
-        } else {
+        } else {// 上一次失败的情况下，避免与上一次选择相同的Broker
             for (int i = 0; i < this.messageQueueList.size(); i++) {
                 int index = this.sendWhichQueue.incrementAndGet();
                 int pos = index % this.messageQueueList.size();
@@ -82,7 +82,7 @@ public class TopicPublishInfo {
             return selectOneMessageQueue();
         }
     }
-    // 轮训选择消息队列
+    // 轮训选择消息队列；
     public MessageQueue selectOneMessageQueue() {
         int index = this.sendWhichQueue.incrementAndGet();
         int pos = index % this.messageQueueList.size();

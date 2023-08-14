@@ -19,16 +19,34 @@ package org.apache.rocketmq.example.quickstart;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import org.apache.commons.collections.MapUtils;
+import org.apache.rocketmq.client.exception.MQBrokerException;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.hook.*;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
+import org.apache.rocketmq.client.producer.MessageQueueSelector;
+import org.apache.rocketmq.client.producer.SendCallback;
 import org.apache.rocketmq.client.producer.SendResult;
+import org.apache.rocketmq.client.producer.selector.SelectMessageQueueByHash;
+import org.apache.rocketmq.client.producer.selector.SelectMessageQueueByRandom;
+import org.apache.rocketmq.common.ThreadFactoryImpl;
 import org.apache.rocketmq.common.message.Message;
+import org.apache.rocketmq.common.message.MessageClientIDSetter;
+import org.apache.rocketmq.common.message.MessageConst;
+import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.remoting.RPCHook;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
+import org.apache.rocketmq.remoting.exception.RemotingException;
+import org.apache.rocketmq.remoting.exception.RemotingSendRequestException;
+import org.apache.rocketmq.remoting.exception.RemotingTimeoutException;
+import org.apache.rocketmq.remoting.exception.RemotingTooMuchRequestException;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
 import java.io.UnsupportedEncodingException;
+import java.util.List;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 /**
  * This class demonstrates how to send messages to brokers using provided {@link DefaultMQProducer}.
@@ -41,6 +59,7 @@ public class Producer {
     public static final int MESSAGE_COUNT = 1000;
     public static final String PRODUCER_GROUP = "szz_producer_group_name";
     public static final String DEFAULT_NAMESRVADDR = "127.0.0.1:9876";
+    public static final String DAILY_NAMESRVADDR = "rocketmq-srv.cainiao.test:9876";
     public static final String TOPIC = "TopicTest";
     public static final String TAG = "TagA";
 
@@ -136,10 +155,45 @@ public class Producer {
     public static void main(String[] args) {
         try {
             //sendSyncMsg(args);
-            sendSyncMsgTestHooks(args);
+            //sendSyncMsgTestHooks(args);
+            //sendSyncMsgSelector(args);
+            sendMsg2Producer(args);
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+
+    public static void sendMsg2Producer(String[] args) throws MQClientException, MQBrokerException, RemotingException, InterruptedException {
+
+        DefaultMQProducer producer2 = new DefaultMQProducer("group2");
+        producer2.setNamesrvAddr(DAILY_NAMESRVADDR);
+        producer2.start();
+
+
+        DefaultMQProducer producer1 = new DefaultMQProducer("group1");
+        producer1.setNamesrvAddr(DEFAULT_NAMESRVADDR);
+
+        producer1.start();
+
+        try {
+            producer2.send(new Message("producer2_topic2","hello DAILY_NAMESRVADDR".getBytes()));
+            System.out.println("producer2:success");
+
+        }catch (Exception e){
+            System.out.println("producer2:"+e.getMessage());
+        }
+
+        try {
+            producer1.send(new Message("producer1_topic1","hello DEFAULT_NAMESRVADDR".getBytes()));
+            System.out.println("producer1:success");
+
+        }catch (Exception e){
+
+            System.out.println("producer:"+e.getMessage());
+        }
+
+
     }
 
     /**
@@ -158,7 +212,7 @@ public class Producer {
 
 
         //String topic = "SZZ-SyncMsg";
-        String topic = "szz_test_4";
+        String topic = "szz_t6";
         String tag = "Tag-SZZ";
         String groupName = "szz_producer_group";
         // 设置自定义Hook 和 开启消息轨迹
@@ -200,10 +254,94 @@ public class Producer {
 
     }
 
+    public static void sendSyncMsgSelector(String[] args) throws InterruptedException, MQClientException, UnsupportedEncodingException {
+        String topic = "szz_select-q1";
+        String tag = "Tag-SZZ-msgqueue";
+        String groupName = "szz_producer_group_msgqueue";
+        // 设置自定义Hook 和 开启消息轨迹
+        DefaultMQProducer producer = new DefaultMQProducer(groupName, null, true, null);
+        producer.setNamesrvAddr(DEFAULT_NAMESRVADDR);
+        // 如果设置了 命名空间的话, 最终的ProducerGroup为【${namespace}%groupName】 例如： szz_daily%szz_producer_group
+        // 设置生产者客户端实例名称; 可以通过系统属性`rocketmq.client.name` 设置，没有设置的话默认DEFAULT; 但是启动的时候判断如果是DEFAULT，则将它改成：PID@时间戳
+        producer.setInstanceName("szz-producer-cliendName");
+
+        //producer.getDefaultMQProducerImpl().registerSendMessageHook(new SzzMessageHook());
+        //producer.getDefaultMQProducerImpl().registerCheckForbiddenHook(new SzzForbiddenMessageHook());
+        //producer.getDefaultMQProducerImpl().registerEndTransactionHook(new SzzEndTransactionHook());
+
+        producer.setMqClientApiTimeout(3000000);
+        // 发送消息超时时间，超过时间不重试的
+        producer.setSendMsgTimeout(2500000);
+        producer.setSendLatencyFaultEnable(true);
+        producer.start();
+
+        Message msg = new Message(topic, tag, "szzkey",
+                (" I'm 石臻臻-HOOK, timestamp:" + System.currentTimeMillis()).getBytes(RemotingHelper.DEFAULT_CHARSET)
+        );
+        //延时消息
+        //msg.setDelayTimeLevel(5);
+
+        try {
+            // 按照arg参数hash选择队列；但是貌似选择的队列都是目前在线的；所以这个会不准的；
+/*
+            for (int i = 0; i < 5; i++) {
+                SendResult sendResult = producer.send(msg, new SelectMessageQueueByRandom(), "123");
+                System.out.println(JSONObject.toJSONString(sendResult, SerializerFeature.WriteMapNullValue));
+            }
+*/
+            //
+
+            //producer.send(msg);
+
+            producer.setEnableBackpressureForAsyncMode(true);
+            //producer.setBackPressureForAsyncSendNum(0);
+
+
+
+
+
+
+
+            producer.send(msg, new SendCallback() {
+                @Override
+                public void onSuccess(SendResult sendResult) {
+
+                    System.out.println("SendCallback#onSuccess...");
+                }
+
+                @Override
+                public void onException(Throwable e) {
+
+                    System.out.println("SendCallback#onException..."+e.getCause());
+
+                    if(e instanceof RemotingTooMuchRequestException){
+                        // 达到限流阈值了/ 或者请求超时了
+                        System.out.printf("异步发送发送Topic:%s 失败(超时或者限流了), 异常：%s",msg.getTopic(),e.getMessage());
+                    } else if (e instanceof RemotingTimeoutException){
+                        System.out.printf("异步发送发送Topic:%s 失败(Netty限流了),异常：%s",msg.getTopic(),e.getMessage());
+                    } else if (e instanceof MQClientException){
+                        System.out.printf("异步发送发送Topic:%s 失败(客户端异常,部分情况会主动重试),异常：%s",msg.getTopic(),e.getMessage());
+                    } else if (e instanceof MQBrokerException){
+                        System.out.printf("异步发送发送Topic:%s 失败(Broker处理异常了),异常：%s",msg.getTopic(),e.getMessage());
+                    } else if (e instanceof RemotingSendRequestException){
+                        System.out.printf("异步发送发送Topic:%s 失败(Netty发起请求异常了),异常：%s",msg.getTopic(),e.getMessage());
+                    }
+
+                }
+            });
+
+            System.out.println("---------------");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            Thread.sleep(1000);
+        }
+    }
+
 
     public static void sendSyncMsgTestHooks(String[] args) throws MQClientException, InterruptedException, UnsupportedEncodingException {
 
-        String topic = "szz_test_hooks";
+        String topic = "szz_t6";
         String tag = "Tag-SZZ-HOOK";
         String groupName = "szz_producer_group_hook";
         // 设置自定义Hook 和 开启消息轨迹
@@ -217,7 +355,12 @@ public class Producer {
         producer.getDefaultMQProducerImpl().registerCheckForbiddenHook(new SzzForbiddenMessageHook());
         producer.getDefaultMQProducerImpl().registerEndTransactionHook(new SzzEndTransactionHook());
 
-        producer.setMqClientApiTimeout(300000);
+        producer.setMqClientApiTimeout(3000000);
+        // 发送消息超时时间，超过时间不重试的
+        producer.setSendMsgTimeout(2500000);
+        producer.setSendLatencyFaultEnable(true);
+        producer.setLatencyMax(new long[]{50L, 100L, 550L, 1000L, 2000L, 3000L, 15000L});
+        producer.setNotAvailableDuration(new long[]{0L, 0L, 30000L, 60000L, 120000L, 180000L, 600000L});
         producer.start();
 
         Message msg = new Message(topic, tag, "szzkey",
@@ -227,7 +370,8 @@ public class Producer {
         //msg.setDelayTimeLevel(5);
 
         try {
-            producer.setSendMsgTimeout(25000);
+
+
             SendResult sendResult = producer.send(msg);
             System.out.println(JSONObject.toJSONString(sendResult, SerializerFeature.WriteMapNullValue));
         } catch (Exception e) {
@@ -238,14 +382,13 @@ public class Producer {
     }
 
 
-
     public static class SzzProducerRPCHook implements RPCHook {
 
         @Override
         public void doBeforeRequest(String remoteAddr, RemotingCommand request) {
             // 判断一下发送之前的消息体是不是太大了
             if (request.getBody() != null && request.getBody().length > 10) {
-                System.out.println("我是生产者钩子SzzProducerRPCHook, 执行了doBeforeRequest ... " );
+                System.out.println("我是生产者钩子SzzProducerRPCHook, 执行了doBeforeRequest ... ");
             }
         }
 
@@ -309,7 +452,6 @@ public class Producer {
         @Override
         public void checkForbidden(CheckForbiddenContext context) throws MQClientException {
             System.out.println("SzzForbiddenMessageHook#checkForbidden.....");
-
         }
     }
 
@@ -328,9 +470,6 @@ public class Producer {
 
         }
     }
-
-
-
 
 
 }

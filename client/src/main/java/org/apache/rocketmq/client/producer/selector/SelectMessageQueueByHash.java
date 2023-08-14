@@ -25,10 +25,17 @@ public class SelectMessageQueueByHash implements MessageQueueSelector {
 
     @Override
     public MessageQueue select(List<MessageQueue> mqs, Message msg, Object arg) {
+
+        System.out.printf("Test SelectMessageQueueByHash 当前的 队列大小为 %s , ",mqs.size());
+        System.out.println();
         int value = arg.hashCode() % mqs.size();
         if (value < 0) {
             value = Math.abs(value);
         }
-        return mqs.get(value);
+        MessageQueue mq =  mqs.get(value);
+
+        System.out.printf("Test SelectMessageQueueByHash 选中了 %s , ",mq.toString());
+
+        return mq;
     }
 }

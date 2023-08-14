@@ -27,9 +27,19 @@ public class LatencyFaultToleranceImplTest {
     private String brokerName = "BrokerA";
     private String anotherBrokerName = "BrokerB";
 
+    private MQFaultStrategy mqFaultStrategy ;
+
     @Before
     public void init() {
         latencyFaultTolerance = new LatencyFaultToleranceImpl();
+        mqFaultStrategy = new MQFaultStrategy();
+        mqFaultStrategy.setSendLatencyFaultEnable(true);
+    }
+
+    @Test
+    public void mqFaultStrategy() {
+
+        mqFaultStrategy.updateFaultItem(brokerName,30123,true);
     }
 
     @Test
