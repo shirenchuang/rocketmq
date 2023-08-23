@@ -163,6 +163,7 @@ public abstract class RebalanceImpl {
             requestBody.getMqSet().add(mq);
 
             try {
+                // 去队列所在的MessageQueue 给它上个锁
                 Set<MessageQueue> lockedMq =
                     this.mQClientFactory.getMQClientAPIImpl().lockBatchMQ(findBrokerResult.getBrokerAddr(), requestBody, 1000);
                 for (MessageQueue mmqq : lockedMq) {
@@ -241,6 +242,8 @@ public abstract class RebalanceImpl {
             for (final Map.Entry<String, SubscriptionData> entry : subTable.entrySet()) {
                 final String topic = entry.getKey();
                 try {
+                    // 1.先判断是否是客户端重平衡
+                    // 2.如果不是客户端重平衡，就要判断这个topic是否存在broker里面，因为要使用boker重平衡
                     if (!clientRebalance(topic) && tryQueryAssignment(topic)) {
                         balanced = this.getRebalanceResultFromBroker(topic, isOrder);
                     } else {
@@ -317,6 +320,7 @@ public abstract class RebalanceImpl {
             }
             case CLUSTERING: {
                 Set<MessageQueue> mqSet = this.topicSubscribeInfoTable.get(topic);
+                // 获取消费组中的所有消费者ClientId
                 List<String> cidAll = this.mQClientFactory.findConsumerIdList(topic, consumerGroup);
                 if (null == mqSet) {
                     if (!topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
@@ -324,7 +328,7 @@ public abstract class RebalanceImpl {
                         log.warn("doRebalance, {}, but the topic[{}] not exist.", consumerGroup, topic);
                     }
                 }
-
+                // 当前消费组还没有消费者
                 if (null == cidAll) {
                     log.warn("doRebalance, {} {}, get consumer id list failed", consumerGroup, topic);
                 }
@@ -354,7 +358,7 @@ public abstract class RebalanceImpl {
                     if (allocateResult != null) {
                         allocateResultSet.addAll(allocateResult);
                     }
-
+                    // 更新要监听的队列
                     boolean changed = this.updateProcessQueueTableInRebalance(topic, allocateResultSet, isOrder);
                     if (changed) {
                         log.info(
@@ -483,10 +487,10 @@ public abstract class RebalanceImpl {
             ProcessQueue pq = next.getValue();
 
             if (mq.getTopic().equals(topic)) {
-                if (!mqSet.contains(mq)) {
+                if (!mqSet.contains(mq)) {//  新分配的队列 不包含该队列，说明是被分配给了别人；这里标记一下呗移除了
                     pq.setDropped(true);
                     removeQueueMap.put(mq, pq);
-                } else if (pq.isPullExpired() && this.consumeType() == ConsumeType.CONSUME_PASSIVELY) {
+                } else if (pq.isPullExpired() && this.consumeType() == ConsumeType.CONSUME_PASSIVELY) {// 如果是PUSH被动消费并且 上一次拉取消息距离现在超过了2分钟(rocketmq.client.pull.pullMaxIdleTime)，则也标记为删除了
                     pq.setDropped(true);
                     removeQueueMap.put(mq, pq);
                     log.error("[BUG]doRebalance, {}, try remove unnecessary mq, {}, because pull is pause, so try to fixed it",
@@ -499,7 +503,7 @@ public abstract class RebalanceImpl {
         for (Entry<MessageQueue, ProcessQueue> entry : removeQueueMap.entrySet()) {
             MessageQueue mq = entry.getKey();
             ProcessQueue pq = entry.getValue();
-
+            // ①. 持久化消费偏移量  ②. 移除该数据  ③. 解锁队列
             if (this.removeUnnecessaryMessageQueue(mq, pq)) {
                 this.processQueueTable.remove(mq);
                 changed = true;
@@ -511,16 +515,16 @@ public abstract class RebalanceImpl {
         boolean allMQLocked = true;
         List<PullRequest> pullRequestList = new ArrayList<>();
         for (MessageQueue mq : mqSet) {
-            if (!this.processQueueTable.containsKey(mq)) {
-                if (isOrder && !this.lock(mq)) {
+            if (!this.processQueueTable.containsKey(mq)) {// 如果是新增的队列 就处理一下
+                if (isOrder && !this.lock(mq)) {// 如果是顺序消费，并且给该队列加锁失败，则直接忽略
                     log.warn("doRebalance, {}, add a new mq failed, {}, because lock failed", consumerGroup, mq);
                     allMQLocked = false;
                     continue;
                 }
-
+                // 清理一下
                 this.removeDirtyOffset(mq);
-                ProcessQueue pq = createProcessQueue(topic);
-                pq.setLocked(true);
+                ProcessQueue pq = createProcessQueue(topic);// 创建一个新的处理队列
+                pq.setLocked(true);// 并给它加锁
                 long nextOffset = this.computePullFromWhere(mq);
                 if (nextOffset >= 0) {
                     ProcessQueue pre = this.processQueueTable.putIfAbsent(mq, pq);
@@ -546,7 +550,7 @@ public abstract class RebalanceImpl {
         if (!allMQLocked) {
             mQClientFactory.rebalanceLater(500);
         }
-
+        // 新消费的这些队列； 开始发起PullRequest
         this.dispatchPullRequest(pullRequestList, 500);
 
         return changed;
@@ -667,12 +671,12 @@ public abstract class RebalanceImpl {
             List<PullRequest> pullRequestList = new ArrayList<>();
             for (MessageQueue mq : mq2PushAssignment.keySet()) {
                 if (!this.processQueueTable.containsKey(mq)) {
-                    if (isOrder && !this.lock(mq)) {
+                    if (isOrder && !this.lock(mq)) {// 如果是顺序消费，并且加锁失败，则忽略该MQ, 顺序消费必须保证顺序性，一定要拿到锁
                         log.warn("doRebalance, {}, add a new mq failed, {}, because lock failed", consumerGroup, mq);
                         allMQLocked = false;
                         continue;
                     }
-
+                    // 先清空当前缓存中该MQ的偏移量信息(脏数据)
                     this.removeDirtyOffset(mq);
                     ProcessQueue pq = createProcessQueue();
                     pq.setLocked(true);

@@ -19,8 +19,12 @@ package org.apache.rocketmq.example.quickstart;
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
 import org.apache.rocketmq.client.consumer.listener.MessageListenerConcurrently;
+import org.apache.rocketmq.client.consumer.rebalance.*;
 import org.apache.rocketmq.client.exception.MQClientException;
+import org.apache.rocketmq.client.producer.DefaultMQProducer;
 import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
+import org.apache.rocketmq.common.message.MessageQueue;
+import org.apache.rocketmq.remoting.protocol.heartbeat.MessageModel;
 
 /**
  * This example shows how to subscribe and consume messages using providing {@link DefaultMQPushConsumer}.
@@ -33,55 +37,101 @@ public class Consumer {
 
     public static void main(String[] args) throws MQClientException {
 
-        String topic = "SZZ-SyncMsg";
+        String topic = "sutee_mq_rebalance";
         String tag = "Tag-SZZ";
-        String groupName = "szz_producer_group";
+        String groupName = "szz_consumer_group";
 
+        AllocateMachineRoomNearby nearby = new AllocateMachineRoomNearby(new AllocateMessageQueueAveragely(), new SzzMachineRoomResolver());
 
         /*
          * Instantiate with specified consumer group name.
          */
         DefaultMQPushConsumer consumer = new DefaultMQPushConsumer(groupName,true);
-
-
-
-        /*
-         * Specify name server addresses.
-         * <p/>
-         *
-         * Alternatively, you may specify name server addresses via exporting environmental variable: NAMESRV_ADDR
-         * <pre>
-         * {@code
-         * consumer.setNamesrvAddr("name-server1-ip:9876;name-server2-ip:9876");
-         * }
-         * </pre>
-         */
-        // Uncomment the following line while debugging, namesrvAddr should be set to your local address
         consumer.setNamesrvAddr(DEFAULT_NAMESRVADDR);
-
-        /*
-         * Specify where to start in case the specific consumer group is a brand-new one.
-         */
         consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
-
-        /*
-         * Subscribe one more topic to consume.
-         */
         consumer.subscribe(topic, "*");
+        consumer.registerMessageListener((MessageListenerConcurrently) (msg, context) -> {
+            System.out.printf("%s consumer1 Receive New Messages: %s %n", Thread.currentThread().getName(), msg);
+            return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
+        });
+       // consumer.setMessageModel(MessageModel.BROADCASTING);
+        consumer.setInstanceName("szz_consumer1|szz1|");
+        System.out.printf("Consumer1 Started.%n");
+       // consumer.setAllocateMessageQueueStrategy(nearby);
+
+        // 开启服务端重平衡
+        //consumer.setClientRebalance(false);
+        consumer.start();
+
 
         /*
-         *  Register callback to execute on arrival of messages fetched from brokers.
+         * Instantiate with specified consumer group name.
          */
-        consumer.registerMessageListener((MessageListenerConcurrently) (msg, context) -> {
-            System.out.printf("%s Receive New Messages: %s %n", Thread.currentThread().getName(), msg);
+        DefaultMQPushConsumer consumer2 = new DefaultMQPushConsumer(groupName,true);
+        consumer2.setNamesrvAddr(DEFAULT_NAMESRVADDR);
+        consumer2.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
+        consumer2.subscribe(topic, "*");
+        consumer2.registerMessageListener((MessageListenerConcurrently) (msg, context) -> {
+            System.out.printf("%s consumer2 Receive New Messages: %s %n", Thread.currentThread().getName(), msg);
             return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
         });
 
-        /*
-         *  Launch the consumer instance.
-         */
-        consumer.start();
+       // consumer2.setAllocateMessageQueueStrategy(nearby);
 
-        System.out.printf("Consumer Started.%n");
+        consumer2.setInstanceName("szz_consumer2|szz2|");
+        //consumer2.setMessageModel(MessageModel.BROADCASTING);
+
+        //consumer2.setClientRebalance(false);
+        consumer2.start();
+
+
+        DefaultMQPushConsumer consumer3 = new DefaultMQPushConsumer(groupName,true);
+        consumer3.setNamesrvAddr(DEFAULT_NAMESRVADDR);
+        consumer3.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
+        consumer3.subscribe(topic, "*");
+        consumer3.registerMessageListener((MessageListenerConcurrently) (msg, context) -> {
+            System.out.printf("%s consumer3 Receive New Messages: %s %n", Thread.currentThread().getName(), msg);
+            return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
+        });
+
+       // consumer3.setAllocateMessageQueueStrategy(nearby);
+
+        consumer3.setInstanceName("szz_consumer3|szz3|");
+        //consumer2.setMessageModel(MessageModel.BROADCASTING);
+
+        //consumer3.setClientRebalance(false);
+        consumer3.start();
+
+        System.out.printf("Consumer3 Started.%n");
+    }
+
+
+    public static class SzzMachineRoomResolver implements AllocateMachineRoomNearby.MachineRoomResolver {
+
+        @Override
+        public String brokerDeployIn(MessageQueue messageQueue) {
+            // 解析该队列是在哪个机房
+
+            // 自定义 BrokerName格式: 机房_BrokerName；  例如： room1_Broker-a
+            return messageQueue.getBrokerName().split("_")[0];
+        }
+
+        @Override
+        public String consumerDeployIn(String clientID) {
+            // 解析消费者客户端是哪个机房
+
+            // 一般clientID格式:  ClientIP@InstanceName@xxx;  所以①.可以通过IP来区分机房; ②.通过设置InstanName属性来标记所属机房；但是这种方式不太友好,不推荐
+                // 这里自定义格式InstanceName=实例名|机房|  例如：127.0.0.1@szz_consumer|机房1|
+            return getMiddleString(clientID);
+        }
+
+        public static String getMiddleString(String input) {
+            int start = input.indexOf("|") + 1;
+            int end = input.indexOf("|", start);
+            if (start > 0 && end > 0) {
+                return input.substring(start, end);
+            }
+            return "";
+        }
     }
 }

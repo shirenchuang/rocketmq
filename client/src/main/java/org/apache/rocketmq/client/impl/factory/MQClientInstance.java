@@ -121,6 +121,7 @@ public class MQClientInstance {
      */
     private final ConcurrentMap<String, HashMap<Long, String>> brokerAddrTable = new ConcurrentHashMap<>();
 
+    // 保持所有Broker的 客户端版本号
     private final ConcurrentMap<String/* Broker Name */, HashMap<String/* address */, Integer>> brokerVersionTable = new ConcurrentHashMap<>();
     private final Set<String/* Broker address */> brokerSupportV2HeartbeatSet = new HashSet();
     private final ConcurrentMap<String, Integer> brokerAddrHeartbeatFingerprintTable = new ConcurrentHashMap();
@@ -258,7 +259,7 @@ public class MQClientInstance {
                     if (null == this.clientConfig.getNamesrvAddr()) {
                         this.mQClientAPIImpl.fetchNameServerAddr();
                     }
-                    // Start request-response channel
+                    // Start request-response channel 启动RemotingClient通信客户端
                     this.mQClientAPIImpl.start();
                     // Start various schedule tasks
                     this.startScheduledTask();
@@ -307,6 +308,7 @@ public class MQClientInstance {
             }
         }, 1000, this.clientConfig.getHeartbeatBrokerInterval(), TimeUnit.MILLISECONDS);
 
+        // 每隔persistConsumerOffsetInterval（默认5s）持久化所有的消费Offset(如果有注册消费者客户端的话)
         this.scheduledExecutorService.scheduleAtFixedRate(() -> {
             try {
                 MQClientInstance.this.persistAllConsumerOffset();
@@ -315,6 +317,7 @@ public class MQClientInstance {
             }
         }, 1000 * 10, this.clientConfig.getPersistConsumerOffsetInterval(), TimeUnit.MILLISECONDS);
 
+        // 每隔一分钟调整 线程池(如果有注册消费者客户端的话)
         this.scheduledExecutorService.scheduleAtFixedRate(() -> {
             try {
                 MQClientInstance.this.adjustThreadPool();
@@ -539,6 +542,7 @@ public class MQClientInstance {
     }
 
     private void sendHeartbeatToAllBroker() {
+        //装备心跳包数据
         final HeartbeatData heartbeatData = this.prepareHeartbeatData(false);
         final boolean producerEmpty = heartbeatData.getProducerDataSet().isEmpty();
         final boolean consumerEmpty = heartbeatData.getConsumerDataSet().isEmpty();
@@ -550,7 +554,9 @@ public class MQClientInstance {
         if (this.brokerAddrTable.isEmpty()) {
             return;
         }
+        // 统计心跳次数
         long times = this.sendHeartbeatTimesTotal.getAndIncrement();
+        // 遍历所有Broker，向所有Broker发起心跳
         for (Entry<String, HashMap<Long, String>> brokerClusterInfo : this.brokerAddrTable.entrySet()) {
             String brokerName = brokerClusterInfo.getKey();
             HashMap<Long, String> oneTable = brokerClusterInfo.getValue();
@@ -563,16 +569,20 @@ public class MQClientInstance {
                 if (addr == null) {
                     continue;
                 }
+                // 没有消费者，并且当前Broker是从Broker，则忽略
                 if (consumerEmpty && MixAll.MASTER_ID != id) {
                     continue;
                 }
 
                 try {
+                    // 向Broker发起请求，返回 服务端版本号
                     int version = this.mQClientAPIImpl.sendHeartbeat(addr, heartbeatData, clientConfig.getMqClientApiTimeout());
                     if (!this.brokerVersionTable.containsKey(brokerName)) {
                         this.brokerVersionTable.put(brokerName, new HashMap<>(4));
                     }
+                    // 保持所有服务端的版本号
                     this.brokerVersionTable.get(brokerName).put(addr, version);
+                    // 每20次打印一下心跳请求日志
                     if (times % 20 == 0) {
                         log.info("send heart beat to broker[{} {} {}] success", brokerName, id, addr);
                         log.info(heartbeatData.toString());

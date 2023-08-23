@@ -89,7 +89,7 @@ public class ClientManageProcessor implements NettyRequestProcessor {
             return heartBeatV2(ctx, heartbeatData, clientChannelInfo, response);
         }
         for (ConsumerData consumerData : heartbeatData.getConsumerDataSet()) {
-            //Reject the PullConsumer
+            //Reject the PullConsumer   拒绝PULL类型的Consumer在Broker拉取消息
             if (brokerController.getBrokerConfig().isRejectPullConsumerEnable()) {
                 if (ConsumeType.CONSUME_ACTIVELY == consumerData.getConsumeType()) {
                     continue;
@@ -97,7 +97,7 @@ public class ClientManageProcessor implements NettyRequestProcessor {
             }
             consumerGroupHeartbeatTable.put(consumerData.getGroupName(), heartbeatFingerprint);
             boolean hasOrderTopicSub = false;
-
+            // 检查是否包含有被标记为 顺序消息的Topic； 只要消费组订阅了顺序消息，那么消费组的重试消息必须是顺序类型下TOpic  %RETRY%ConsumerGroup
             for (final SubscriptionData subscriptionData : consumerData.getSubscriptionDataSet()) {
                 if (this.brokerController.getTopicConfigManager().isOrderTopic(subscriptionData.getTopic())) {
                     hasOrderTopicSub = true;
@@ -117,7 +117,7 @@ public class ClientManageProcessor implements NettyRequestProcessor {
             int topicSysFlag = 0;
             if (consumerData.isUnitMode()) {
                 topicSysFlag = TopicSysFlag.buildSysFlag(false, true);
-            }
+            }// 创建消费组的重试Topic（如果不存在的话），如果消费组消费了 顺序消息的类型，那么消费组重试类型也需要变成顺序消息类型
             String newTopic = MixAll.getRetryTopic(consumerData.getGroupName());
             this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic, subscriptionGroupConfig.getRetryQueueNums(),
                 PermName.PERM_WRITE | PermName.PERM_READ, hasOrderTopicSub, topicSysFlag);

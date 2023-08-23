@@ -230,7 +230,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                         + "] has been created before, specify another name please." + FAQUrl.suggestTodo(FAQUrl.GROUP_NAME_DUPLICATE_URL),
                         null);
                 }
-
+                // 内部创建的Producer不启动;
                 if (startFactory) {
                     mQClientFactory.start();
                 }

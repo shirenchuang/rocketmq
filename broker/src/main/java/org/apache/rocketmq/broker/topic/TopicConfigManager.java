@@ -328,7 +328,7 @@ public class TopicConfigManager extends ConfigManager {
         final boolean isOrder,
         final int topicSysFlag) {
         TopicConfig topicConfig = this.topicConfigTable.get(topic);
-        if (topicConfig != null) {
+        if (topicConfig != null) {// 如果消息顺序类型不一致，则更新一下
             if (isOrder != topicConfig.isOrder()) {
                 topicConfig.setOrder(isOrder);
                 this.updateTopicConfig(topicConfig);

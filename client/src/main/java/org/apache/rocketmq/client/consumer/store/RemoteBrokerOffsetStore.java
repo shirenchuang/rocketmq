@@ -232,7 +232,7 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(mq.getTopic());
             findBrokerResult = this.mQClientFactory.findBrokerAddressInSubscribe(this.mQClientFactory.getBrokerNameFromMessageQueue(mq), MixAll.MASTER_ID, false);
         }
-
+        // MQ所在的Master Broker
         if (findBrokerResult != null) {
             QueryConsumerOffsetRequestHeader requestHeader = new QueryConsumerOffsetRequestHeader();
             requestHeader.setTopic(mq.getTopic());

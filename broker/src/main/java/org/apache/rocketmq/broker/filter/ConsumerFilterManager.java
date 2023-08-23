@@ -102,7 +102,7 @@ public class ConsumerFilterManager extends ConfigManager {
     }
 
     public void register(final String consumerGroup, final Collection<SubscriptionData> subList) {
-        for (SubscriptionData subscriptionData : subList) {
+        for (SubscriptionData subscriptionData : subList) { // 如果类型是 SQL92 , 则注册过滤器
             register(
                 subscriptionData.getTopic(),
                 consumerGroup,

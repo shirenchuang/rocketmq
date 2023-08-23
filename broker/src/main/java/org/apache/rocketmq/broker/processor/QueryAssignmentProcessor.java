@@ -115,7 +115,7 @@ public class QueryAssignmentProcessor implements NettyRequestProcessor {
             setMessageRequestModeRequestBody.setConsumerGroup(consumerGroup);
 
             if (topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
-                // retry topic must be pull mode
+                // retry topic must be pull mode 重试的TOPIC 必须是传统的PULL  队列消费模式
                 setMessageRequestModeRequestBody.setMode(MessageRequestMode.PULL);
             } else {
                 setMessageRequestModeRequestBody.setMode(brokerController.getBrokerConfig().getDefaultMessageRequestMode());
@@ -202,7 +202,7 @@ public class QueryAssignmentProcessor implements NettyRequestProcessor {
                 Collections.sort(cidAll);
                 List<MessageQueue> allocateResult = null;
 
-                try {
+                try {// 只支持 AVG -> {AllocateMessageQueueAveragely@16364}  和 AVG_BY_CIRCLE -> {AllocateMessageQueueAveragelyByCircle@16747}
                     AllocateMessageQueueStrategy allocateMessageQueueStrategy = name2LoadStrategy.get(strategyName);
                     if (null == allocateMessageQueueStrategy) {
                         log.warn("QueryLoad: unsupported strategy [{}],  {}", strategyName, RemotingHelper.parseChannelRemoteAddr(ctx.channel()));

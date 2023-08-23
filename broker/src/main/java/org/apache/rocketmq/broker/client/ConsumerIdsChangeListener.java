@@ -18,6 +18,12 @@ package org.apache.rocketmq.broker.client;
 
 public interface ConsumerIdsChangeListener {
 
+    /**
+     * 处理变更
+     * @param event 变更事件类型
+     * @param group 消费组
+     * @param args 自定义入参数组
+     */
     void handle(ConsumerGroupEvent event, String group, Object... args);
 
     void shutdown();

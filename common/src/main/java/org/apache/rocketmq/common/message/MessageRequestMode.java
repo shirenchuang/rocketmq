@@ -23,11 +23,14 @@ public enum MessageRequestMode {
 
     /**
      * pull
+     *
+     * PULL模式，就是以往的队列消费模式
      */
     PULL("PULL"),
 
     /**
      * pop, consumer working in pop mode could share MessageQueue
+     * POP 模式，就是消息粒度消费模式
      */
     POP("POP");
 

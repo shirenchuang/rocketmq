@@ -19,6 +19,8 @@ package org.apache.rocketmq.client.consumer.rebalance;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
+
 import org.apache.rocketmq.common.consistenthash.ConsistentHashRouter;
 import org.apache.rocketmq.common.consistenthash.HashFunction;
 import org.apache.rocketmq.common.consistenthash.Node;
@@ -76,7 +78,9 @@ public class AllocateMessageQueueConsistentHash extends AbstractAllocateMessageQ
                 results.add(mq);
             }
         }
-
+        String s = cidAll.stream().collect(Collectors.joining(","));
+        System.out.printf("AllocateMessageQueueConsistentHash# consumerGroup:%s , ClientId:%s , mqAllSize: %s , 消费者ID: %s ; 分配结果：%s",consumerGroup,currentCID,mqAll.size(),s,results);
+        System.out.println();
         return results;
 
     }

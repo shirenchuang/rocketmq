@@ -253,13 +253,13 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
         try {
             this.makeSureStateOK();
-        } catch (MQClientException e) {
+        } catch (MQClientException e) { // 当前消费者运行状态不行；3秒之后重新发起
             log.warn("pullMessage exception, consumer state not ok", e);
             this.executePullRequestLater(pullRequest, pullTimeDelayMillsWhenException);
             return;
         }
 
-        if (this.isPause()) {
+        if (this.isPause()) { // 一秒之后重新发起
             log.warn("consumer was paused, execute pull request later. instanceName={}, group={}", this.defaultMQPushConsumer.getInstanceName(), this.defaultMQPushConsumer.getConsumerGroup());
             this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_SUSPEND);
             return;
@@ -268,9 +268,9 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         long cachedMessageCount = processQueue.getMsgCount().get();
         long cachedMessageSizeInMiB = processQueue.getMsgSize().get() / (1024 * 1024);
 
-        if (cachedMessageCount > this.defaultMQPushConsumer.getPullThresholdForQueue()) {
+        if (cachedMessageCount > this.defaultMQPushConsumer.getPullThresholdForQueue()) {// 超过限流  50ms之后继续发起
             this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_CACHE_FLOW_CONTROL);
-            if ((queueFlowControlTimes++ % 1000) == 0) {
+            if ((queueFlowControlTimes++ % 1000) == 0) {//队列流量受控次数 每1000次 就打印一次日志
                 log.warn(
                     "the cached message count exceeds the threshold {}, so do flow control, minOffset={}, maxOffset={}, count={}, size={} MiB, pullRequest={}, flowControlTimes={}",
                     this.defaultMQPushConsumer.getPullThresholdForQueue(), processQueue.getMsgTreeMap().firstKey(), processQueue.getMsgTreeMap().lastKey(), cachedMessageCount, cachedMessageSizeInMiB, pullRequest, queueFlowControlTimes);
@@ -278,9 +278,9 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             return;
         }
 
-        if (cachedMessageSizeInMiB > this.defaultMQPushConsumer.getPullThresholdSizeForQueue()) {
+        if (cachedMessageSizeInMiB > this.defaultMQPushConsumer.getPullThresholdSizeForQueue()) {// 超过限流  50ms之后继续发起
             this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_CACHE_FLOW_CONTROL);
-            if ((queueFlowControlTimes++ % 1000) == 0) {
+            if ((queueFlowControlTimes++ % 1000) == 0) {//队列流量受控次数 每1000次 就打印一次日志
                 log.warn(
                     "the cached message size exceeds the threshold {} MiB, so do flow control, minOffset={}, maxOffset={}, count={}, size={} MiB, pullRequest={}, flowControlTimes={}",
                     this.defaultMQPushConsumer.getPullThresholdSizeForQueue(), processQueue.getMsgTreeMap().firstKey(), processQueue.getMsgTreeMap().lastKey(), cachedMessageCount, cachedMessageSizeInMiB, pullRequest, queueFlowControlTimes);
@@ -288,7 +288,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             return;
         }
 
-        if (!this.consumeOrderly) {
+        if (!this.consumeOrderly) {// 非顺序消费
             if (processQueue.getMaxSpan() > this.defaultMQPushConsumer.getConsumeConcurrentlyMaxSpan()) {
                 this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_CACHE_FLOW_CONTROL);
                 if ((queueMaxSpanFlowControlTimes++ % 1000) == 0) {
@@ -299,7 +299,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 }
                 return;
             }
-        } else {
+        } else {// 顺序消费
             if (processQueue.isLocked()) {
                 if (!pullRequest.isPreviouslyLocked()) {
                     long offset = -1L;
@@ -909,6 +909,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 this.copySubscription();
 
                 if (this.defaultMQPushConsumer.getMessageModel() == MessageModel.CLUSTERING) {
+                    // 集群消费模式，如果没有设置实例名；则将实例名改成 PID#当前时间
                     this.defaultMQPushConsumer.changeInstanceNameToPID();
                 }
 
@@ -931,9 +932,11 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 } else {
                     switch (this.defaultMQPushConsumer.getMessageModel()) {
                         case BROADCASTING:
+                            // 广播模式 的偏移量是存放在本地文件中的
                             this.offsetStore = new LocalFileOffsetStore(this.mQClientFactory, this.defaultMQPushConsumer.getConsumerGroup());
                             break;
                         case CLUSTERING:
+                            // 集群模式的偏移量是存储在Broker中的；
                             this.offsetStore = new RemoteBrokerOffsetStore(this.mQClientFactory, this.defaultMQPushConsumer.getConsumerGroup());
                             break;
                         default:
@@ -985,7 +988,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             default:
                 break;
         }
-
+        // 更新一下 自己订阅的所有TOpic的路由消息
         this.updateTopicSubscribeInfoWhenSubscriptionChanged();
         this.mQClientFactory.checkClientInBroker();
         this.mQClientFactory.sendHeartbeatToAllBrokerWithLock();
@@ -1179,8 +1182,12 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         }
     }
 
+    /**
+     * 如果是集群模式消费；则订阅一下重试的Topic；每个消费组都有自己的重试Topic；
+     */
     private void copySubscription() throws MQClientException {
         try {
+            // 这里是 将自定义的 订阅关系 拷贝到this.rebalanceImpl.getSubscriptionInner()中；但是不推荐通过set的形式设置；请不要这么做
             Map<String, String> sub = this.defaultMQPushConsumer.getSubscription();
             if (sub != null) {
                 for (final Map.Entry<String, String> entry : sub.entrySet()) {
@@ -1199,6 +1206,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 case BROADCASTING:
                     break;
                 case CLUSTERING:
+                    // 订阅 重试Topic( %RETRY%消费组 )；并且是订阅所有Tag
                     final String retryTopic = MixAll.getRetryTopic(this.defaultMQPushConsumer.getConsumerGroup());
                     SubscriptionData subscriptionData = FilterAPI.buildSubscriptionData(retryTopic, SubscriptionData.SUB_ALL);
                     this.rebalanceImpl.getSubscriptionInner().put(retryTopic, subscriptionData);

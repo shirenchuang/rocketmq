@@ -44,7 +44,7 @@ public class DefaultConsumerIdsChangeListener implements ConsumerIdsChangeListen
 
     public DefaultConsumerIdsChangeListener(BrokerController brokerController) {
         this.brokerController = brokerController;
-
+        // 每15秒执行一次
         scheduledExecutorService.scheduleAtFixedRate(new AbstractBrokerRunnable(brokerController.getBrokerConfig()) {
             @Override
             public void run0() {
@@ -87,6 +87,7 @@ public class DefaultConsumerIdsChangeListener implements ConsumerIdsChangeListen
                     return;
                 }
                 Collection<SubscriptionData> subscriptionDataList = (Collection<SubscriptionData>) args[0];
+                // 注册消费者过滤器(如果是SQL92类型的话)
                 this.brokerController.getConsumerFilterManager().register(group, subscriptionDataList);
                 break;
             case CLIENT_REGISTER:

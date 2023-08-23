@@ -995,6 +995,14 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
         this.retryResponseCodes.add(responseCode);
     }
 
+    /**
+     *
+     * 做了很多校验
+     * 设置Topic 和 setWaitStoreMsgOK属性
+     * @param msgs
+     * @return
+     * @throws MQClientException
+     */
     private MessageBatch batch(Collection<Message> msgs) throws MQClientException {
         MessageBatch msgBatch;
         try {
@@ -1005,6 +1013,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
                 message.setTopic(withNamespace(message.getTopic()));
             }
             MessageClientIDSetter.setUniqID(msgBatch);
+            // 将每个消息体 序列化到body里面；进行发送
             msgBatch.setBody(msgBatch.encode());
         } catch (Exception e) {
             throw new MQClientException("Failed to initiate the MessageBatch", e);

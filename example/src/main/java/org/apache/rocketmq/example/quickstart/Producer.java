@@ -35,6 +35,8 @@ import org.apache.rocketmq.remoting.exception.RemotingTooMuchRequestException;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class demonstrates how to send messages to brokers using provided {@link DefaultMQProducer}.
@@ -151,6 +153,21 @@ public class Producer {
         }
     }
 
+    public static void sendBatchMsg() throws MQClientException, MQBrokerException, RemotingException, InterruptedException {
+        DefaultMQProducer producer = new DefaultMQProducer("group_batch");
+        producer.setNamesrvAddr(DEFAULT_NAMESRVADDR);
+        producer.start();
+
+        List<Message> list = new ArrayList<>();
+        Message msg1 = new Message("batch_topic","tag","key","批量消息1".getBytes());
+        Message msg2 = new Message("batch_topic","tag","key","批量消息2".getBytes());
+        list.add(msg1);
+        list.add(msg2);
+        producer.send(list);
+
+    }
+
+
     public static void sendOrderlyMsg() throws MQClientException {
         DefaultMQProducer producer = new DefaultMQProducer("group_orderly");
         producer.setNamesrvAddr(DEFAULT_NAMESRVADDR);
@@ -168,14 +185,15 @@ public class Producer {
 
 
         DefaultMQProducer producer1 = new DefaultMQProducer("group1");
-        producer1.setNamesrvAddr("http://MQ_INST_DAILY.rocketmq:9876");
-
+        //producer1.setNamesrvAddr("rocketmq-srv.cainiao.test:9876");
+        producer1.setNamesrvAddr("127.0.0.1:9876");
         producer1.start();
 
 
 
+
         try {
-            producer1.send(new Message("producer1_topic1","hello DEFAULT_NAMESRVADDR".getBytes()));
+            producer1.send(new Message("sutee_mq_rebalance","TAG2","hello DEFAULT_NAMESRVADDR".getBytes()));
             System.out.println("producer1:success");
 
         }catch (Exception e){

@@ -184,16 +184,16 @@ public class ConsumerManager {
             ConsumerGroupInfo prev = this.consumerTable.putIfAbsent(group, tmp);
             consumerGroupInfo = prev != null ? prev : tmp;
         }
-
+        // 是不是新的消费者客户端
         boolean r1 =
             consumerGroupInfo.updateChannel(clientChannelInfo, consumeType, messageModel,
                 consumeFromWhere);
-        boolean r2 = false;
+        boolean r2 = false; // 更新消费组的订阅信息
         if (updateSubscription) {
             r2 = consumerGroupInfo.updateSubscription(subList);
         }
 
-        if (r1 || r2) {
+        if (r1 || r2) {// 通知监听器消费组有变更了；
             if (isNotifyConsumerIdsChangedEnable) {
                 callConsumerIdsChangeListener(ConsumerGroupEvent.CHANGE, group, consumerGroupInfo.getAllChannel());
             }

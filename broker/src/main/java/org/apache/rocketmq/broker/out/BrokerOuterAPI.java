@@ -497,7 +497,7 @@ public class BrokerOuterAPI {
             requestBody.setTopicConfigSerializeWrapper(TopicConfigAndMappingSerializeWrapper.from(topicConfigWrapper));
             requestBody.setFilterServerList(filterServerList);
             final byte[] body = requestBody.encode(compressed);
-            System.out.println("注册Broker(registerBroker)的Body：\n"+JSONObject.toJSONString(requestBody,SerializerFeature.WriteMapNullValue));
+            //System.out.println("注册Broker(registerBroker)的Body：\n"+JSONObject.toJSONString(requestBody,SerializerFeature.WriteMapNullValue));
 
             final int bodyCrc32 = UtilAll.crc32(body);
             requestHeader.setBodyCrc32(bodyCrc32);
@@ -543,7 +543,7 @@ public class BrokerOuterAPI {
         InterruptedException {
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.REGISTER_BROKER, requestHeader);
         request.setBody(body);
-        System.out.println("注册Broker(registerBroker)的RequestHeader：\n"+JSONObject.toJSONString(requestHeader, SerializerFeature.WriteMapNullValue));
+        //System.out.println("注册Broker(registerBroker)的RequestHeader：\n"+JSONObject.toJSONString(requestHeader, SerializerFeature.WriteMapNullValue));
         //TODO  手动改一下超时时间长一点，方便调试啊
          timeoutMills = 240000 ;
 

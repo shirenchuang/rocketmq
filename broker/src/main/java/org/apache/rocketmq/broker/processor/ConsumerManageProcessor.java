@@ -320,7 +320,7 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
             responseHeader.setOffset(offset);
             response.setCode(ResponseCode.SUCCESS);
             response.setRemark(null);
-        } else {
+        } else {// 如果没有找到(可能是从来没有消费过，反正是本地持久化没有该消费数据)
             long minOffset =
                 this.brokerController.getMessageStore().getMinOffsetInQueue(requestHeader.getTopic(),
                     requestHeader.getQueueId());

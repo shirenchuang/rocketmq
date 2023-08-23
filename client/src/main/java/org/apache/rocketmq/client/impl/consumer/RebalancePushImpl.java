@@ -86,13 +86,17 @@ public class RebalancePushImpl extends RebalanceImpl {
 
     @Override
     public boolean removeUnnecessaryMessageQueue(MessageQueue mq, ProcessQueue pq) {
+        // 将M该队列 的消费偏移量手动持久化一下（是oneway的请求方式，可能是持久化失败）;
         this.defaultMQPushConsumerImpl.getOffsetStore().persist(mq);
+        // 从缓存中移除,不再订阅它了
         this.defaultMQPushConsumerImpl.getOffsetStore().removeOffset(mq);
+        // 如果是顺序消费的方式 并且是 集群消费模式 ： 如果该队列还有消息没有处理完；则等待20秒之后再对该队列解锁，否则直接解锁
         if (this.defaultMQPushConsumerImpl.isConsumeOrderly()
             && MessageModel.CLUSTERING.equals(this.defaultMQPushConsumerImpl.messageModel())) {
             try {
                 if (pq.getConsumeLock().tryLock(1000, TimeUnit.MILLISECONDS)) {
                     try {
+                        // 如果该队列还有消息没有处理完；则20秒之后再对该队列解锁
                         return this.unlockDelay(mq, pq);
                     } finally {
                         pq.getConsumeLock().unlock();
@@ -114,7 +118,7 @@ public class RebalancePushImpl extends RebalanceImpl {
     }
 
     @Override
-    public boolean clientRebalance(String topic) {
+    public boolean clientRebalance(String topic) { // clientRebalance || 顺序消费 || 广播类型  都需要重平衡
         // POPTODO order pop consume not implement yet
         return defaultMQPushConsumerImpl.getDefaultMQPushConsumer().isClientRebalance() || defaultMQPushConsumerImpl.isConsumeOrderly() || MessageModel.BROADCASTING.equals(messageModel);
     }
@@ -176,9 +180,9 @@ public class RebalancePushImpl extends RebalanceImpl {
                 if (lastOffset >= 0) {
                     result = lastOffset;
                 }
-                // First start,no offset
+                // First start,no offset  首次启动 没有消费数据;
                 else if (-1 == lastOffset) {
-                    if (mq.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
+                    if (mq.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {// 如果是重试类型,则偏移量为0
                         result = 0L;
                     } else {
                         try {
@@ -198,7 +202,7 @@ public class RebalancePushImpl extends RebalanceImpl {
                 long lastOffset = offsetStore.readOffset(mq, ReadOffsetType.READ_FROM_STORE);
                 if (lastOffset >= 0) {
                     result = lastOffset;
-                } else if (-1 == lastOffset) {
+                } else if (-1 == lastOffset) {// 首次启动 ，默认为0
                     //the offset will be fixed by the OFFSET_ILLEGAL process
                     result = 0L;
                 } else {
@@ -211,7 +215,7 @@ public class RebalancePushImpl extends RebalanceImpl {
                 long lastOffset = offsetStore.readOffset(mq, ReadOffsetType.READ_FROM_STORE);
                 if (lastOffset >= 0) {
                     result = lastOffset;
-                } else if (-1 == lastOffset) {
+                } else if (-1 == lastOffset) {// 没有找到消费偏移量文件 ；首次启动
                     if (mq.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
                         try {
                             result = this.mQClientFactory.getMQAdminImpl().maxOffset(mq);

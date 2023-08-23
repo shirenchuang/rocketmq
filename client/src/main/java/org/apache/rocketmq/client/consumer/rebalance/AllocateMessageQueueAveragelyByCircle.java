@@ -18,6 +18,8 @@ package org.apache.rocketmq.client.consumer.rebalance;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+
 import org.apache.rocketmq.common.message.MessageQueue;
 
 /**
@@ -40,6 +42,9 @@ public class AllocateMessageQueueAveragelyByCircle extends AbstractAllocateMessa
                 result.add(mqAll.get(i));
             }
         }
+        String s = cidAll.stream().collect(Collectors.joining(","));
+        System.out.printf("AllocateMessageQueueAveragely# consumerGroup:%s , ClientId:%s , mqAllSize: %s , 消费者ID: %s ; 分配结果：%s",consumerGroup,currentCID,mqAll.size(),s,result);
+        System.out.println();
         return result;
     }
 
