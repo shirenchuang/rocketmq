@@ -1042,7 +1042,7 @@ public class MQClientInstance {
 
         return null;
     }
-
+    // 寻址一个请求的地址; 优先请求Master
     public FindBrokerResult findBrokerAddressInSubscribe(
         final String brokerName,
         final long brokerId,
@@ -1061,12 +1061,12 @@ public class MQClientInstance {
             slave = brokerId != MixAll.MASTER_ID;
             found = brokerAddr != null;
 
-            if (!found && slave) {
+            if (!found && slave) {// 如果是从SLave中找到，但是当前BrokerId不存在，则自动将BrokerId+1，查找下一个slave
                 brokerAddr = map.get(brokerId + 1);
                 found = brokerAddr != null;
             }
 
-            if (!found && !onlyThisBroker) {
+            if (!found && !onlyThisBroker) {// 如果还没有找到并且允许查找其他Broker，则查找 Map中的第一个BrokerId
                 Entry<Long, String> entry = map.entrySet().iterator().next();
                 brokerAddr = entry.getValue();
                 slave = entry.getKey() != MixAll.MASTER_ID;

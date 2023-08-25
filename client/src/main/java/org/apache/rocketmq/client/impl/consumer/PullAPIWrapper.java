@@ -205,7 +205,7 @@ public class PullAPIWrapper {
 
         if (findBrokerResult != null) {
             {
-                // check version
+                // check version  SPL92 是 V4_1_0_SNAPSHOT之后提供的
                 if (!ExpressionType.isTagType(expressionType)
                     && findBrokerResult.getBrokerVersion() < MQVersion.Version.V4_1_0_SNAPSHOT.ordinal()) {
                     throw new MQClientException("The broker[" + mq.getBrokerName() + ", "
@@ -214,7 +214,7 @@ public class PullAPIWrapper {
             }
             int sysFlagInner = sysFlag;
 
-            if (findBrokerResult.isSlave()) {
+            if (findBrokerResult.isSlave()) {// 如果是要访问从节点，是不允许提交commiter的
                 sysFlagInner = PullSysFlag.clearCommitOffsetFlag(sysFlagInner);
             }
 
@@ -234,7 +234,7 @@ public class PullAPIWrapper {
             requestHeader.setBname(mq.getBrokerName());
 
             String brokerAddr = findBrokerResult.getBrokerAddr();
-            if (PullSysFlag.hasClassFilterFlag(sysFlagInner)) {
+            if (PullSysFlag.hasClassFilterFlag(sysFlagInner)) {// 如果需要过滤，则重新计算一下Broker地址; 从过滤列表中随机获取一个地址
                 brokerAddr = computePullFromWhichFilterServer(mq.getTopic(), brokerAddr);
             }
 

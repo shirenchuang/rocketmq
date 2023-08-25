@@ -56,7 +56,7 @@ public class PullSysFlag {
 
         return flag;
     }
-
+    // 清理CommitOffsetFlag 这个标记
     public static int clearCommitOffsetFlag(final int sysFlag) {
         return sysFlag & (~FLAG_COMMIT_OFFSET);
     }

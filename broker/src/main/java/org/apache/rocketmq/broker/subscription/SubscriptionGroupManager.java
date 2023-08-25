@@ -116,9 +116,11 @@ public class SubscriptionGroupManager extends ConfigManager {
     }
 
     public void updateSubscriptionGroupConfig(final SubscriptionGroupConfig config) {
+        // config中是否带有 属性值Attributes
         Map<String, String> newAttributes = request(config);
+        //当前的属性Attributes
         Map<String, String> currentAttributes = current(config.getGroupName());
-
+        // 解析一下最终的属性(有删除的就删除，有新增的就新增)
         Map<String, String> finalAttributes = AttributeUtil.alterCurrentAttributes(
             this.subscriptionGroupTable.get(config.getGroupName()) == null,
             SubscriptionGroupAttributes.ALL,
@@ -126,7 +128,7 @@ public class SubscriptionGroupManager extends ConfigManager {
             ImmutableMap.copyOf(newAttributes));
 
         config.setAttributes(finalAttributes);
-
+        // 将新的订阅配置更新到缓存中
         SubscriptionGroupConfig old = this.subscriptionGroupTable.put(config.getGroupName(), config);
         if (old != null) {
             log.info("update subscription group config, old: {} new: {}", old, config);
@@ -135,8 +137,9 @@ public class SubscriptionGroupManager extends ConfigManager {
         }
 
         long stateMachineVersion = brokerController.getMessageStore() != null ? brokerController.getMessageStore().getStateMachineVersion() : 0;
+        // 更新数据版本
         dataVersion.nextVersion(stateMachineVersion);
-
+        // 将新的订阅数据持久化到本地文件; 文件路径默认为：{user.home}/store/config/subscriptionGroup.json
         this.persist();
     }
 

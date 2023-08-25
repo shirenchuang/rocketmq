@@ -26,6 +26,8 @@ import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
 import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.remoting.protocol.heartbeat.MessageModel;
 
+import java.net.InetAddress;
+
 /**
  * This example shows how to subscribe and consume messages using providing {@link DefaultMQPushConsumer}.
  */
@@ -35,7 +37,42 @@ public class Consumer {
     public static final String DEFAULT_NAMESRVADDR = "127.0.0.1:9876";
     public static final String TOPIC = "TopicTest";
 
+
+    public static void testAllByName(){
+        String hostname = "rocketmq-srv.cainiao.test";
+
+        try {
+            InetAddress[] addresses = InetAddress.getAllByName(hostname);
+            for (InetAddress address : addresses) {
+                System.out.println(address.getHostAddress());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     public static void main(String[] args) throws MQClientException {
+
+        //testAllByName();
+
+        DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("szz_consumer_group",true);
+        //consumer.setNamesrvAddr("rocketmq-srv.cainiao.test:9876");
+        //consumer.setNamesrvAddr("szzdzhp.com:9876;szzdzhp.com:9877");
+        consumer.setNamesrvAddr("http://rocketmq-srv.cainiao.test:9876; ");
+
+        consumer.subscribe("sutee_mq_rebalance", "*");
+        consumer.registerMessageListener((MessageListenerConcurrently) (msg, context) -> {
+            System.out.printf("%s consumer1 Receive New Messages: %s %n", Thread.currentThread().getName(), msg);
+            return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
+        });
+        //consumer.setInstanceName("rocketmq_cn_default_instance2222");
+
+        consumer.setPullBatchSize(33);
+        consumer.start();
+
+    }
+
+    public static void main1(String[] args) throws MQClientException {
 
         String topic = "sutee_mq_rebalance";
         String tag = "Tag-SZZ";
@@ -63,6 +100,7 @@ public class Consumer {
         //consumer.setClientRebalance(false);
         consumer.start();
 
+        consumer.getDefaultMQPushConsumerImpl().suspend();
 
         /*
          * Instantiate with specified consumer group name.
@@ -83,6 +121,7 @@ public class Consumer {
 
         //consumer2.setClientRebalance(false);
         consumer2.start();
+        consumer2.getDefaultMQPushConsumerImpl().suspend();
 
 
         DefaultMQPushConsumer consumer3 = new DefaultMQPushConsumer(groupName,true);
@@ -95,12 +134,13 @@ public class Consumer {
         });
 
        // consumer3.setAllocateMessageQueueStrategy(nearby);
-
         consumer3.setInstanceName("szz_consumer3|szz3|");
         //consumer2.setMessageModel(MessageModel.BROADCASTING);
 
         //consumer3.setClientRebalance(false);
         consumer3.start();
+        consumer3.getDefaultMQPushConsumerImpl().suspend();
+        consumer3.getDefaultMQPushConsumerImpl().resume();
 
         System.out.printf("Consumer3 Started.%n");
     }
