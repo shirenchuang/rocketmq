@@ -39,7 +39,7 @@ public class Consumer {
 
 
     public static void testAllByName(){
-        String hostname = "rocketmq-srv.cainiao.test";
+        String hostname = "11.159.145.195";
 
         try {
             InetAddress[] addresses = InetAddress.getAllByName(hostname);
@@ -58,7 +58,7 @@ public class Consumer {
         DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("szz_consumer_group",true);
         //consumer.setNamesrvAddr("rocketmq-srv.cainiao.test:9876");
         //consumer.setNamesrvAddr("szzdzhp.com:9876;szzdzhp.com:9877");
-        consumer.setNamesrvAddr("http://rocketmq-srv.cainiao.test:9876; ");
+        consumer.setNamesrvAddr("http://rocketmq-srv.cainiao.test:9876");
 
         consumer.subscribe("sutee_mq_rebalance", "*");
         consumer.registerMessageListener((MessageListenerConcurrently) (msg, context) -> {

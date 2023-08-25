@@ -467,7 +467,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
     public void updateNameServerAddressList(List<String> addrs) {
         List<String> old = this.namesrvAddrList.get();
         boolean update = false;
-
+        // 这里都是判断是否有地址变更
         if (!addrs.isEmpty()) {
             if (null == old) {
                 update = true;
@@ -487,7 +487,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                 LOGGER.info("name server address updated. NEW : {} , OLD: {}", addrs, old);
                 this.namesrvAddrList.set(addrs);
 
-                // should close the channel if choosed addr is not exist.
+                // should close the channel if choosed addr is not exist. 如果新的地址中不包含 之前请求被选中的 地址，那么需要将这个选中的地址关闭通道
                 if (this.namesrvAddrChoosed.get() != null && !addrs.contains(this.namesrvAddrChoosed.get())) {
                     String namesrvAddr = this.namesrvAddrChoosed.get();
                     for (String addr : this.channelTables.keySet()) {
@@ -507,7 +507,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
     public RemotingCommand invokeSync(String addr, final RemotingCommand request, long timeoutMillis)
             throws InterruptedException, RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException {
         long beginStartTime = System.currentTimeMillis();
-        //这里传入的addr为null；所以会从当前的NameSrv中随机选择一个可用的通道返回
+        //这里传入的addr为null；所以会从当前的NameSrv中选择一个可用的地址，优先选择上一次的地址
         final Channel channel = this.getAndCreateChannel(addr);
         // 获取随机到的通道地址
         String channelRemoteAddr = RemotingHelper.parseChannelRemoteAddr(channel);
