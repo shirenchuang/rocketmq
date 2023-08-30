@@ -694,7 +694,7 @@ public class BrokerController {
                     LOG.error("ScheduledTask refresh metadata exception", e);
                 }
             }
-        }, 10, 4200, TimeUnit.SECONDS);//TODO  这里 5秒改成了42秒；记得改回来
+        }, 10, 5000, TimeUnit.SECONDS);//TODO  这里 5秒改成了42秒；记得改回来
 
         if (this.brokerConfig.getNamesrvAddr() != null) {
             this.updateNamesrvAddr();

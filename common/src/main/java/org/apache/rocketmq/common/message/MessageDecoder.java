@@ -475,7 +475,7 @@ public class MessageDecoder {
             // 15 BODY
             int bodyLen = byteBuffer.getInt();
             if (bodyLen > 0) {
-                if (readBody) {
+                if (readBody) {// 如果允许读取Body模块，则会校验一下body的CRC32 ，并且还会根据 消息是否压缩过来根据 deCompressBody判断是否需要解压
                     byte[] body = new byte[bodyLen];
                     byteBuffer.get(body);
 

@@ -136,7 +136,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
             topicSysFlag = TopicSysFlag.buildSysFlag(false, true);
         }
 
-        // Create retry topic to master broker
+        // Create retry topic to master broker   获取或者创建重试队列
         TopicConfig topicConfig = masterBroker.getTopicConfigManager().createTopicInSendMessageBackMethod(
             newTopic,
             subscriptionGroupConfig.getRetryQueueNums(),
@@ -168,7 +168,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         msgExt.setWaitStoreMsgOK(false);
 
         int delayLevel = requestHeader.getDelayLevel();
-
+        // 订阅组的最大重试次数；从V3.4.9 开始重试次数的设置就放到客户端了
         int maxReconsumeTimes = subscriptionGroupConfig.getRetryMaxTimes();
         if (request.getVersion() >= MQVersion.Version.V3_4_9.ordinal()) {
             Integer times = requestHeader.getMaxReconsumeTimes();
@@ -179,7 +179,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
 
         boolean isDLQ = false;
         if (msgExt.getReconsumeTimes() >= maxReconsumeTimes
-            || delayLevel < 0) {
+            || delayLevel < 0) {// 超过了最大重试次数或者 重试策略为不重试
 
             Attributes attributes = BrokerMetricsManager.newAttributesBuilder()
                 .put(LABEL_CONSUMER_GROUP, requestHeader.getGroup())
@@ -189,7 +189,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
             BrokerMetricsManager.sendToDlqMessages.add(1, attributes);
 
             isDLQ = true;
-            newTopic = MixAll.getDLQTopic(requestHeader.getGroup());
+            newTopic = MixAll.getDLQTopic(requestHeader.getGroup());// 死信队列
             queueIdInt = randomQueueId(DLQ_NUMS_PER_GROUP);
 
             // Create DLQ topic to master broker
@@ -204,10 +204,10 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
             }
             msgExt.setDelayTimeLevel(0);
         } else {
-            if (0 == delayLevel) {
+            if (0 == delayLevel) {// Broker控制延迟等级
                 delayLevel = 3 + msgExt.getReconsumeTimes();
             }
-
+            // 如果>0 则客户端自己会控制延迟等级
             msgExt.setDelayTimeLevel(delayLevel);
         }
 

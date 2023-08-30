@@ -121,6 +121,13 @@ public class PullMessageService extends ServiceThread {
         while (!this.isStopped()) {
             try {
                 MessageRequest messageRequest = this.messageRequestQueue.take();
+
+                //TODO  方便调试 这里每次请求延迟3秒
+
+               // Thread.sleep(3000);
+
+
+
                 if (messageRequest.getMessageRequestMode() == MessageRequestMode.POP) {
                     this.popMessage((PopRequest) messageRequest);
                 } else {

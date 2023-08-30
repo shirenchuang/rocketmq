@@ -79,8 +79,8 @@ public class AllocateMessageQueueConsistentHash extends AbstractAllocateMessageQ
             }
         }
         String s = cidAll.stream().collect(Collectors.joining(","));
-        System.out.printf("AllocateMessageQueueConsistentHash# consumerGroup:%s , ClientId:%s , mqAllSize: %s , 消费者ID: %s ; 分配结果：%s",consumerGroup,currentCID,mqAll.size(),s,results);
-        System.out.println();
+        //System.out.printf("AllocateMessageQueueConsistentHash# consumerGroup:%s , ClientId:%s , mqAllSize: %s , 消费者ID: %s ; 分配结果：%s",consumerGroup,currentCID,mqAll.size(),s,results);
+        //System.out.println();
         return results;
 
     }

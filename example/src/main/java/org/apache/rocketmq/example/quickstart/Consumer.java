@@ -58,12 +58,13 @@ public class Consumer {
         DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("szz_consumer_group",true);
         //consumer.setNamesrvAddr("rocketmq-srv.cainiao.test:9876");
         //consumer.setNamesrvAddr("szzdzhp.com:9876;szzdzhp.com:9877");
-        consumer.setNamesrvAddr("http://rocketmq-srv.cainiao.test:9876");
+        consumer.setNamesrvAddr(DEFAULT_NAMESRVADDR);
 
-        consumer.subscribe("sutee_mq_rebalance", "*");
+        consumer.subscribe("szz_queue_1", "*");
         consumer.registerMessageListener((MessageListenerConcurrently) (msg, context) -> {
             System.out.printf("%s consumer1 Receive New Messages: %s %n", Thread.currentThread().getName(), msg);
-            return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
+            context.setAckIndex(2);
+            return ConsumeConcurrentlyStatus.RECONSUME_LATER;
         });
         //consumer.setInstanceName("rocketmq_cn_default_instance2222");
 

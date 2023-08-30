@@ -109,8 +109,8 @@ public class AllocateMachineRoomNearby extends AbstractAllocateMessageQueueStrat
         }
 
         String s = cidAll.stream().collect(Collectors.joining(","));
-        System.out.printf("AllocateMachineRoomNearby# consumerGroup:%s , ClientId:%s , mqAllSize: %s , 消费者ID: %s ; 分配结果：%s",consumerGroup,currentCID,mqAll.size(),s,allocateResults);
-        System.out.println();
+        //System.out.printf("AllocateMachineRoomNearby# consumerGroup:%s , ClientId:%s , mqAllSize: %s , 消费者ID: %s ; 分配结果：%s",consumerGroup,currentCID,mqAll.size(),s,allocateResults);
+        //System.out.println();
         return allocateResults;
     }
 

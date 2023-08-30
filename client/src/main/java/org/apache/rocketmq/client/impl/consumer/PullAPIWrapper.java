@@ -85,7 +85,7 @@ public class PullAPIWrapper {
             );
 
             boolean needDecodeInnerMessage = false;
-            for (MessageExt messageExt: msgList) {
+            for (MessageExt messageExt: msgList) {// 如果消息是批量消息，则   标记一下需要needDecodeInnerMessage = true;
                 if (MessageSysFlag.check(messageExt.getSysFlag(), MessageSysFlag.INNER_BATCH_FLAG)
                     && MessageSysFlag.check(messageExt.getSysFlag(), MessageSysFlag.NEED_UNWRAP_FLAG)) {
                     needDecodeInnerMessage = true;
@@ -95,7 +95,7 @@ public class PullAPIWrapper {
             if (needDecodeInnerMessage) {
                 List<MessageExt> innerMsgList = new ArrayList<>();
                 try {
-                    for (MessageExt messageExt: msgList) {
+                    for (MessageExt messageExt: msgList) {// 拆包：解析批量消息
                         if (MessageSysFlag.check(messageExt.getSysFlag(), MessageSysFlag.INNER_BATCH_FLAG)
                             && MessageSysFlag.check(messageExt.getSysFlag(), MessageSysFlag.NEED_UNWRAP_FLAG)) {
                             MessageDecoder.decodeMessage(messageExt, innerMsgList);
@@ -108,7 +108,7 @@ public class PullAPIWrapper {
                     log.error("Try to decode the inner batch failed for {}", pullResult.toString(), t);
                 }
             }
-
+            // 客户端再过滤一遍
             List<MessageExt> msgListFilterAgain = msgList;
             if (!subscriptionData.getTagsSet().isEmpty() && !subscriptionData.isClassFilterMode()) {
                 msgListFilterAgain = new ArrayList<>(msgList.size());
@@ -121,7 +121,7 @@ public class PullAPIWrapper {
                 }
             }
 
-            if (this.hasHook()) {
+            if (this.hasHook()) {// 消息过滤HOOK
                 FilterMessageContext filterMessageContext = new FilterMessageContext();
                 filterMessageContext.setUnitMode(unitMode);
                 filterMessageContext.setMsgList(msgListFilterAgain);

@@ -364,6 +364,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                                 DefaultMQPushConsumerImpl.this.getConsumerStatsManager().incPullTPS(pullRequest.getConsumerGroup(),
                                     pullRequest.getMessageQueue().getTopic(), pullResult.getMsgFoundList().size());
 
+                                System.out.println("本次PullRequest拉取的消息数量为:" + pullResult.getMsgFoundList().size());
                                 boolean dispatchToConsume = processQueue.putMessage(pullResult.getMsgFoundList());
                                 DefaultMQPushConsumerImpl.this.consumeMessageService.submitConsumeRequest(
                                     pullResult.getMsgFoundList(),
@@ -392,9 +393,9 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                         case NO_NEW_MSG:
                         case NO_MATCHED_MSG:
                             pullRequest.setNextOffset(pullResult.getNextBeginOffset());
-
+                            // 更新下一次获取消息的偏移量
                             DefaultMQPushConsumerImpl.this.correctTagsOffset(pullRequest);
-
+                            // 立马发起下一次请求
                             DefaultMQPushConsumerImpl.this.executePullRequestImmediately(pullRequest);
                             break;
                         case OFFSET_ILLEGAL:

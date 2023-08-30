@@ -53,94 +53,6 @@ public class Producer {
     public static final String TOPIC = "TopicTest";
     public static final String TAG = "TagA";
 
-    public static void main1(String[] args) throws MQClientException, InterruptedException {
-
-        /*
-         * Instantiate with a producer group name.
-         */
-        DefaultMQProducer producer = new DefaultMQProducer(PRODUCER_GROUP);
-
-        /*
-         * Specify name server addresses.
-         *
-         * Alternatively, you may specify name server addresses via exporting environmental variable: NAMESRV_ADDR
-         * <pre>
-         * {@code
-         *  producer.setNamesrvAddr("name-server1-ip:9876;name-server2-ip:9876");
-         * }
-         * </pre>
-         */
-        // Uncomment the following line while debugging, namesrvAddr should be set to your local address
-        producer.setNamesrvAddr(DEFAULT_NAMESRVADDR);
-
-
-        /*
-         * Launch the instance.
-         */
-        producer.start();
-
-        for (int i = 0; i < MESSAGE_COUNT; i++) {
-            try {
-
-                /*
-                 * Create a message instance, specifying topic, tag and message body.
-                 */
-                Message msg = new Message(TOPIC /* Topic */,
-                        TAG /* Tag */,
-                        ("Hello RocketMQ " + i).getBytes(RemotingHelper.DEFAULT_CHARSET) /* Message body */
-                );
-
-                /*
-                 * Call send message to deliver message to one of brokers.
-                 */
-                SendResult sendResult = producer.send(msg);
-                /*
-                 * There are different ways to send message, if you don't care about the send result,you can use this way
-                 * {@code
-                 * producer.sendOneway(msg);
-                 * }
-                 */
-
-                /*
-                 * if you want to get the send result in a synchronize way, you can use this send method
-                 * {@code
-                 * SendResult sendResult = producer.send(msg);
-                 * System.out.printf("%s%n", sendResult);
-                 * }
-                 */
-
-                /*
-                 * if you want to get the send result in a asynchronize way, you can use this send method
-                 * {@code
-                 *
-                 *  producer.send(msg, new SendCallback() {
-                 *  @Override
-                 *  public void onSuccess(SendResult sendResult) {
-                 *      // do something
-                 *  }
-                 *
-                 *  @Override
-                 *  public void onException(Throwable e) {
-                 *      // do something
-                 *  }
-                 *});
-                 *
-                 *}
-                 */
-
-                System.out.printf("%s%n", sendResult);
-            } catch (Exception e) {
-                e.printStackTrace();
-                Thread.sleep(1000);
-            }
-        }
-
-        /*
-         * Shut down once the producer instance is no longer in use.
-         */
-        producer.shutdown();
-    }
-
 
     public static void main(String[] args) {
         try {
@@ -159,8 +71,8 @@ public class Producer {
         producer.start();
 
         List<Message> list = new ArrayList<>();
-        Message msg1 = new Message("batch_topic","tag","key","批量消息1".getBytes());
-        Message msg2 = new Message("batch_topic","tag","key","批量消息2".getBytes());
+        Message msg1 = new Message("batch_topic", "tag", "key", "批量消息1".getBytes());
+        Message msg2 = new Message("batch_topic", "tag", "key", "批量消息2".getBytes());
         list.add(msg1);
         list.add(msg2);
         producer.send(list);
@@ -173,7 +85,7 @@ public class Producer {
         producer.setNamesrvAddr(DEFAULT_NAMESRVADDR);
         producer.start();
 
-        Message msg = new Message("orderly_topic","tag","key","顺序消息啊".getBytes());
+        Message msg = new Message("orderly_topic", "tag", "key", "顺序消息啊".getBytes());
 
 
     }
@@ -182,23 +94,22 @@ public class Producer {
     public static void sendMsg2Producer(String[] args) throws MQClientException, MQBrokerException, RemotingException, InterruptedException {
 
 
-
-
         DefaultMQProducer producer1 = new DefaultMQProducer("group1");
         //producer1.setNamesrvAddr("rocketmq-srv.cainiao.test:9876");
         producer1.setNamesrvAddr("127.0.0.1:9876");
         producer1.start();
 
 
-
-
         try {
-            producer1.send(new Message("sutee_mq_rebalance","TAG2","hello DEFAULT_NAMESRVADDR".getBytes()));
-            System.out.println("producer1:success");
+            for (int i = 0; i < 100; i++) {
+                producer1.send(new Message("szz_queue_1", "TAG2", (i+"").getBytes()));
+                System.out.println("producer1:success");
+            }
 
-        }catch (Exception e){
 
-            System.out.println("producer1:"+e.getMessage());
+        } catch (Exception e) {
+
+            System.out.println("producer1:" + e.getMessage());
         }
 
 
@@ -305,11 +216,6 @@ public class Producer {
             //producer.setBackPressureForAsyncSendNum(0);
 
 
-
-
-
-
-
             producer.send(msg, new SendCallback() {
                 @Override
                 public void onSuccess(SendResult sendResult) {
@@ -320,19 +226,19 @@ public class Producer {
                 @Override
                 public void onException(Throwable e) {
 
-                    System.out.println("SendCallback#onException..."+e.getCause());
+                    System.out.println("SendCallback#onException..." + e.getCause());
 
-                    if(e instanceof RemotingTooMuchRequestException){
+                    if (e instanceof RemotingTooMuchRequestException) {
                         // 达到限流阈值了/ 或者请求超时了
-                        System.out.printf("异步发送发送Topic:%s 失败(超时或者限流了), 异常：%s",msg.getTopic(),e.getMessage());
-                    } else if (e instanceof RemotingTimeoutException){
-                        System.out.printf("异步发送发送Topic:%s 失败(Netty限流了),异常：%s",msg.getTopic(),e.getMessage());
-                    } else if (e instanceof MQClientException){
-                        System.out.printf("异步发送发送Topic:%s 失败(客户端异常,部分情况会主动重试),异常：%s",msg.getTopic(),e.getMessage());
-                    } else if (e instanceof MQBrokerException){
-                        System.out.printf("异步发送发送Topic:%s 失败(Broker处理异常了),异常：%s",msg.getTopic(),e.getMessage());
-                    } else if (e instanceof RemotingSendRequestException){
-                        System.out.printf("异步发送发送Topic:%s 失败(Netty发起请求异常了),异常：%s",msg.getTopic(),e.getMessage());
+                        System.out.printf("异步发送发送Topic:%s 失败(超时或者限流了), 异常：%s", msg.getTopic(), e.getMessage());
+                    } else if (e instanceof RemotingTimeoutException) {
+                        System.out.printf("异步发送发送Topic:%s 失败(Netty限流了),异常：%s", msg.getTopic(), e.getMessage());
+                    } else if (e instanceof MQClientException) {
+                        System.out.printf("异步发送发送Topic:%s 失败(客户端异常,部分情况会主动重试),异常：%s", msg.getTopic(), e.getMessage());
+                    } else if (e instanceof MQBrokerException) {
+                        System.out.printf("异步发送发送Topic:%s 失败(Broker处理异常了),异常：%s", msg.getTopic(), e.getMessage());
+                    } else if (e instanceof RemotingSendRequestException) {
+                        System.out.printf("异步发送发送Topic:%s 失败(Netty发起请求异常了),异常：%s", msg.getTopic(), e.getMessage());
                     }
 
                 }

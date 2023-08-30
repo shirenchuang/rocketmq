@@ -46,6 +46,7 @@ public class ProcessQueue {
     private final Logger log = LoggerFactory.getLogger(ProcessQueue.class);
     private final ReadWriteLock treeMapLock = new ReentrantReadWriteLock();
     private final TreeMap<Long, MessageExt> msgTreeMap = new TreeMap<>();
+    // 该处理流程 未处理完成的总消息量
     private final AtomicLong msgCount = new AtomicLong();
     private final AtomicLong msgSize = new AtomicLong();
     private final Lock consumeLock = new ReentrantLock();
@@ -61,7 +62,7 @@ public class ProcessQueue {
     private volatile boolean locked = false;
     private volatile long lastLockTimestamp = System.currentTimeMillis();
     private volatile boolean consuming = false;
-    private volatile long msgAccCnt = 0;
+    private volatile long msgAccCnt = 0;// 还有多少条消息没有拉取过来
 
     public boolean isLockExpired() {
         return (System.currentTimeMillis() - this.lastLockTimestamp) > REBALANCE_LOCK_MAX_LIVE_TIME;
@@ -153,7 +154,7 @@ public class ProcessQueue {
                     MessageExt messageExt = msgs.get(msgs.size() - 1);
                     String property = messageExt.getProperty(MessageConst.PROPERTY_MAX_OFFSET);
                     if (property != null) {
-                        long accTotal = Long.parseLong(property) - messageExt.getQueueOffset();
+                        long accTotal = Long.parseLong(property) - messageExt.getQueueOffset();// 还有多少消息没有拉取
                         if (accTotal > 0) {
                             this.msgAccCnt = accTotal;
                         }
@@ -206,6 +207,7 @@ public class ProcessQueue {
                     msgCount.addAndGet(removedCnt);
 
                     if (!msgTreeMap.isEmpty()) {
+                        // 返回Map中的最小KEY; 提交已消费的offset的时候，肯定是返回当前依然存在的最小的offset；
                         result = msgTreeMap.firstKey();
                     }
                 }

@@ -511,7 +511,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         final Channel channel = this.getAndCreateChannel(addr);
         // 获取随机到的通道地址
         String channelRemoteAddr = RemotingHelper.parseChannelRemoteAddr(channel);
-        System.out.printf("本次invokeSync请求addr:%s,解析到的地址为:%s", addr, channelRemoteAddr);
+        //System.out.printf("本次invokeSync请求addr:%s,解析到的地址为:%s", addr, channelRemoteAddr);
         System.out.println();
         if (channel != null && channel.isActive()) {
             try {
