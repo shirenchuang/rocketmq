@@ -84,7 +84,9 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
 
     public void start() {
         this.cleanExpireMsgExecutors.scheduleAtFixedRate(new Runnable() {
-
+            // 每隔15分钟 执行一次清理过期的消息(兜底政策)；
+            // 每隔15分钟 执行一次清理过期的消息(兜底政策)；
+            // 查找每个ProcessQueue的的最小Offset，是否有超时还未消费完成的Msg；如果有的话，则主动发回重试，并将该Msg从TreeMap中移除
             @Override
             public void run() {
                 try {
@@ -93,7 +95,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                     log.error("scheduleAtFixedRate cleanExpireMsg exception", e);
                 }
             }
-
+            // 这里的间隔时间改成1或者 5 分钟比较合适
         }, this.defaultMQPushConsumer.getConsumeTimeout(), this.defaultMQPushConsumer.getConsumeTimeout(), TimeUnit.MINUTES);
     }
 
@@ -254,12 +256,15 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                 if (ackIndex >= consumeRequest.getMsgs().size()) {
                     ackIndex = consumeRequest.getMsgs().size() - 1;
                 }
+                // 这个意思是，就算你返回了消费成功，但是你还是可以通过设置ackIndex 来标记从哪个索引开始时消费失败了的；从而记录到 消费失败TPS的监控指标中;
                 int ok = ackIndex + 1;
                 int failed = consumeRequest.getMsgs().size() - ok;
                 this.getConsumerStatsManager().incConsumeOKTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), ok);
                 this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), failed);
                 break;
             case RECONSUME_LATER:
+                // 失败的情况，ackIndex=-1,说明想要让所有的Message都去重试
+                // 感觉这里可以优化，直接使用context.getAckIndex()，让用户自己来决定从哪个索引开始的Message需要重试
                 ackIndex = -1;
                 this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(),
                     consumeRequest.getMsgs().size());
@@ -277,7 +282,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                 break;
             case CLUSTERING:
                 List<MessageExt> msgBackFailed = new ArrayList<>(consumeRequest.getMsgs().size());
-                // 看起来是想让用户自己控制从哪个消息开始重试；但是上面已经把AckIndex设置为了-1了；用户根本控制不了
+                // 消费失败的情况，所有的Message都要重试; 成功的根据设置的ack值来重试；  (个人觉得，失败的情况，可以让用户设置从哪个Index开始时需要重试的；之前消费成功的并不需要重试)
                 for (int i = ackIndex + 1; i < consumeRequest.getMsgs().size(); i++) {
                     MessageExt msg = consumeRequest.getMsgs().get(i);
                     // Maybe message is expired and cleaned, just ignore it.
@@ -287,7 +292,8 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                             msg.getQueueId(), msg.getQueueOffset());
                         continue;
                     }
-                    boolean result = this.sendMessageBack(msg, context);// 消费失败需要重试
+                    // 同步发送的消息，如果本次发回失败, 则让它在客户端进行重试
+                    boolean result = this.sendMessageBack(msg, context);
                     if (!result) {
                         msg.setReconsumeTimes(msg.getReconsumeTimes() + 1);
                         msgBackFailed.add(msg);
@@ -295,18 +301,21 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                 }
                 // 如果上面的请求失败了, 则客户端5秒后重新发起消费;
                 if (!msgBackFailed.isEmpty()) {
+                    // 如果是本地客户端重试的情况, 把这些本地重试的Msg移除掉, 主要作用是 一会不会把这一部分 Msgs从TreeMap移除掉
                     consumeRequest.getMsgs().removeAll(msgBackFailed);
-                    // 失败的队列重试
+                    // 同步发送的消息，如果本次发回失败, 则让它在客户端进行重试消费
                     this.submitConsumeRequestLater(msgBackFailed, consumeRequest.getProcessQueue(), consumeRequest.getMessageQueue());
                 }
                 break;
             default:
                 break;
         }
-        // 更新待提交的偏移量信息到内存offsetTable中
+        // 把本次消费请求的所有消息移除掉，并且返回当前 消息树TreeMap 中最小的数值；(就是返回当前待消费的消息最小偏移量)
+        // 从这里可以看出, 就是本次消费失败了需要重试了，但是消息发送回Broker中了(除了同步请求失败的情况)；也会当这些消息消费成功，允许它们提交偏移量；否则的话会一直阻塞消费偏移量的提交
         long offset = consumeRequest.getProcessQueue().removeMessage(consumeRequest.getMsgs());
         if (offset >= 0 && !consumeRequest.getProcessQueue().isDropped()) {
             System.out.println("新增待提交偏移量为：" + offset);
+            // 更新一下 已消费偏移量；
             this.defaultMQPushConsumerImpl.getOffsetStore().updateOffset(consumeRequest.getMessageQueue(), offset, true);
         }
     }
@@ -316,6 +325,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
     }
 
     public boolean sendMessageBack(final MessageExt msg, final ConsumeConcurrentlyContext context) {
+        // 重试消息的延迟级别；0: Broker来决定；  >0 用户自己来决定；
         int delayLevel = context.getDelayLevelWhenNextConsume();
 
         // Wrap topic with namespace before sending back message.
@@ -387,6 +397,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
             MessageListenerConcurrently listener = ConsumeMessageConcurrentlyService.this.messageListener;
             ConsumeConcurrentlyContext context = new ConsumeConcurrentlyContext(messageQueue);
             ConsumeConcurrentlyStatus status = null;
+            // 去掉RETRY 前缀
             defaultMQPushConsumerImpl.tryResetPopRetryTopic(msgs, consumerGroup);
             defaultMQPushConsumerImpl.resetRetryAndNamespace(msgs, defaultMQPushConsumer.getConsumerGroup());
 
@@ -436,6 +447,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
             }
 
             if (ConsumeMessageConcurrentlyService.this.defaultMQPushConsumerImpl.hasHook()) {
+                //将具体的返回类型 保存到consumeMessageContext的 Propos中； 在后续的hook中，就可以通过这个属性来判断是什么类型的异常了
                 consumeMessageContext.getProps().put(MixAll.CONSUME_CONTEXT_TYPE, returnType.name());
             }
 

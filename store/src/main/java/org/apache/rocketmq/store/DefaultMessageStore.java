@@ -122,7 +122,7 @@ public class DefaultMessageStore implements MessageStore {
     private final ConsumeQueueStore consumeQueueStore;
 
     private final FlushConsumeQueueService flushConsumeQueueService;
-
+    // CommitLog 清理服务
     private final CleanCommitLogService cleanCommitLogService;
 
     private final CleanConsumeQueueService cleanConsumeQueueService;
@@ -257,7 +257,7 @@ public class DefaultMessageStore implements MessageStore {
         this.dispatcherList = new LinkedList<>();
         this.dispatcherList.addLast(new CommitLogDispatcherBuildConsumeQueue());
         this.dispatcherList.addLast(new CommitLogDispatcherBuildIndex());
-        if (messageStoreConfig.isEnableCompaction()) {
+        if (messageStoreConfig.isEnableCompaction()) {// 删除策略是紧缩类型
             this.compactionStore = new CompactionStore(this);
             this.compactionService = new CompactionService(commitLog, this, compactionStore);
             this.dispatcherList.addLast(new CommitLogDispatcherCompaction(compactionService));
@@ -268,7 +268,7 @@ public class DefaultMessageStore implements MessageStore {
         UtilAll.ensureDirOK(getStorePathPhysic());
         UtilAll.ensureDirOK(getStorePathLogic());
         lockFile = new RandomAccessFile(file, "rw");
-
+        // 解析延迟级别，默认18个等级； 可以自己通过  messageStoreConfig.getMessageDelayLevel() 配置
         parseDelayLevel();
     }
 
@@ -326,7 +326,7 @@ public class DefaultMessageStore implements MessageStore {
             // load Consume Queue
             result = result && this.consumeQueueStore.load();
 
-            if (messageStoreConfig.isEnableCompaction()) {
+            if (messageStoreConfig.isEnableCompaction()) {// 加载紧缩类型的Topic
                 result = result && this.compactionService.load(lastExitOK);
             }
 
@@ -774,7 +774,7 @@ public class DefaultMessageStore implements MessageStore {
         }
 
         Optional<TopicConfig> topicConfig = getTopicConfig(topic);
-        CleanupPolicy policy = CleanupPolicyUtils.getDeletePolicy(topicConfig);
+        CleanupPolicy policy = CleanupPolicyUtils.getDeletePolicy(topicConfig);// 获取删除策略；有 "DELETE", "COMPACTION" ；默认DELETE; 可以通过Topic的 Attributes  cleanup.policy 设置
         //check request topic flag
         if (Objects.equals(policy, CleanupPolicy.COMPACTION) && messageStoreConfig.isEnableCompaction()) {
             return compactionStore.getMessage(group, topic, queueId, offset, maxMsgNums, maxTotalMsgSize);
@@ -788,7 +788,7 @@ public class DefaultMessageStore implements MessageStore {
         long maxOffset = 0;
 
         GetMessageResult getResult = new GetMessageResult();
-
+        // commitLog最大偏移量
         final long maxOffsetPy = this.commitLog.getMaxOffset();
 
         ConsumeQueueInterface consumeQueue = findConsumeQueue(topic, queueId);
@@ -866,7 +866,7 @@ public class DefaultMessageStore implements MessageStore {
                                     continue;
                                 }
                             }
-
+                            // 消息过来
                             if (messageFilter != null
                                 && !messageFilter.isMatchedByConsumeQueue(cqUnit.getValidTagsCodeAsLong(), cqUnit.getCqExtUnit())) {
                                 if (getResult.getBufferTotalSize() == 0) {
@@ -2159,7 +2159,7 @@ public class DefaultMessageStore implements MessageStore {
 
         private int forceCleanFailedTimes = 0;
 
-        double getDiskSpaceWarningLevelRatio() {
+        double getDiskSpaceWarningLevelRatio() {//磁盘使用率告警阈值
             double finalDiskSpaceWarningLevelRatio;
             if ("".equals(diskSpaceWarningLevelRatio)) {
                 finalDiskSpaceWarningLevelRatio = DefaultMessageStore.this.getMessageStoreConfig().getDiskSpaceWarningLevelRatio() / 100.0;
@@ -2176,7 +2176,7 @@ public class DefaultMessageStore implements MessageStore {
 
             return finalDiskSpaceWarningLevelRatio;
         }
-
+        // 获取 磁盘空间超过多少比例 需要强制清理； 默认为85%，可以通过系统属性 rocketmq.broker.diskSpaceCleanForciblyRatio 自己设置
         double getDiskSpaceCleanForciblyRatio() {
             double finalDiskSpaceCleanForciblyRatio;
             if ("".equals(diskSpaceCleanForciblyRatio)) {
@@ -2212,14 +2212,14 @@ public class DefaultMessageStore implements MessageStore {
         private void deleteExpiredFiles() {
             int deleteCount = 0;
             long fileReservedTime = DefaultMessageStore.this.getMessageStoreConfig().getFileReservedTime();
-            int deletePhysicFilesInterval = DefaultMessageStore.this.getMessageStoreConfig().getDeleteCommitLogFilesInterval();
+            int deletePhysicFilesInterval = DefaultMessageStore.this.getMessageStoreConfig().getDeleteCommitLogFilesInterval();//删除commitlog文件的时间间隔，删除一个文件后等一下再删除一个文件
             int destroyMappedFileIntervalForcibly = DefaultMessageStore.this.getMessageStoreConfig().getDestroyMapedFileIntervalForcibly();
-            int deleteFileBatchMax = DefaultMessageStore.this.getMessageStoreConfig().getDeleteFileBatchMax();
+            int deleteFileBatchMax = DefaultMessageStore.this.getMessageStoreConfig().getDeleteFileBatchMax();//一起清理流程，最多删除的文件数量
 
-            boolean isTimeUp = this.isTimeToDelete();
-            boolean isUsageExceedsThreshold = this.isSpaceToDelete();
+            boolean isTimeUp = this.isTimeToDelete();//是否到了清理磁盘的时间点。
+            boolean isUsageExceedsThreshold = this.isSpaceToDelete();// 磁盘使用率是否超过阈值,
             boolean isManualDelete = this.manualDeleteFileSeveralTimes > 0;
-
+            // 如果到了时间点 | 磁盘空间满了需要强制 | 手动  则执行清理流程
             if (isTimeUp || isUsageExceedsThreshold || isManualDelete) {
 
                 if (isManualDelete) {
@@ -2289,17 +2289,17 @@ public class DefaultMessageStore implements MessageStore {
             double minPhysicRatio = 100;
             String minStorePath = null;
             for (String storePathPhysic : storePaths) {
-                double physicRatio = UtilAll.getDiskPartitionSpaceUsedPercent(storePathPhysic);
-                if (minPhysicRatio > physicRatio) {
+                double physicRatio = UtilAll.getDiskPartitionSpaceUsedPercent(storePathPhysic); // 计算commitLog所在的分区磁盘空间使用率
+                if (minPhysicRatio > physicRatio) {// 找出最小的磁盘使用率，和对应的文件路径
                     minPhysicRatio = physicRatio;
                     minStorePath = storePathPhysic;
                 }
-                if (physicRatio > getDiskSpaceCleanForciblyRatio()) {
-                    fullStorePath.add(storePathPhysic);
+                if (physicRatio > getDiskSpaceCleanForciblyRatio()) { // 获取 磁盘空间超过多少比例 需要强制清理； 默认为85%，可以通过系统属性 rocketmq.broker.diskSpaceCleanForciblyRatio 自己设置
+                    fullStorePath.add(storePathPhysic);// 如果磁盘利用率超过了阈值，则记录下来作为需要清理的路径
                 }
             }
             DefaultMessageStore.this.commitLog.setFullStorePaths(fullStorePath);
-            if (minPhysicRatio > getDiskSpaceWarningLevelRatio()) {
+            if (minPhysicRatio > getDiskSpaceWarningLevelRatio()) {// 最小的磁盘使用率的 那个磁盘使用率都超过告警阈值
                 boolean diskFull = DefaultMessageStore.this.runningFlags.getAndMakeDiskFull();
                 if (diskFull) {
                     DefaultMessageStore.LOGGER.error("physic disk maybe full soon " + minPhysicRatio +
@@ -2308,7 +2308,7 @@ public class DefaultMessageStore implements MessageStore {
 
                 cleanImmediately = true;
                 return true;
-            } else if (minPhysicRatio > getDiskSpaceCleanForciblyRatio()) {
+            } else if (minPhysicRatio > getDiskSpaceCleanForciblyRatio()) {// 超过清理阈值的话，里面返回，需要清理
                 cleanImmediately = true;
                 return true;
             } else {
@@ -2318,11 +2318,11 @@ public class DefaultMessageStore implements MessageStore {
                         ", so mark disk ok, storePathPhysic=" + minStorePath);
                 }
             }
-
+            // 消费队列存储文件  {storPath}/consumequeue； 计算该文件所在磁盘分区的使用率
             String storePathLogics = StorePathConfigHelper
                 .getStorePathConsumeQueue(DefaultMessageStore.this.getMessageStoreConfig().getStorePathRootDir());
             double logicsRatio = UtilAll.getDiskPartitionSpaceUsedPercent(storePathLogics);
-            if (logicsRatio > getDiskSpaceWarningLevelRatio()) {
+            if (logicsRatio > getDiskSpaceWarningLevelRatio()) {// 消费队列逻辑磁盘大于警告阈值, 也需要立马触发磁盘清理
                 boolean diskOK = DefaultMessageStore.this.runningFlags.getAndMakeDiskFull();
                 if (diskOK) {
                     DefaultMessageStore.LOGGER.error("logics disk maybe full soon " + logicsRatio + ", so mark disk full");
@@ -2330,7 +2330,7 @@ public class DefaultMessageStore implements MessageStore {
 
                 cleanImmediately = true;
                 return true;
-            } else if (logicsRatio > getDiskSpaceCleanForciblyRatio()) {
+            } else if (logicsRatio > getDiskSpaceCleanForciblyRatio()) {// 达到清理阈值，立刻清理
                 cleanImmediately = true;
                 return true;
             } else {
@@ -2341,20 +2341,20 @@ public class DefaultMessageStore implements MessageStore {
             }
 
             double ratio = DefaultMessageStore.this.getMessageStoreConfig().getDiskMaxUsedSpaceRatio() / 100.0;
-            int replicasPerPartition = DefaultMessageStore.this.getMessageStoreConfig().getReplicasPerDiskPartition();
+            int replicasPerPartition = DefaultMessageStore.this.getMessageStoreConfig().getReplicasPerDiskPartition();//同一个磁盘分区有多少个副本，该配置用于计算当同一节点上的多个broker共享同一磁盘分区时，各broker的磁盘配额
             // Only one commitLog in node
             if (replicasPerPartition <= 1) {
-                if (minPhysicRatio < 0 || minPhysicRatio > ratio) {
+                if (minPhysicRatio < 0 || minPhysicRatio > ratio) {// 超过阈值了，需要清理
                     DefaultMessageStore.LOGGER.info("commitLog disk maybe full soon, so reclaim space, " + minPhysicRatio);
                     return true;
                 }
 
-                if (logicsRatio < 0 || logicsRatio > ratio) {
+                if (logicsRatio < 0 || logicsRatio > ratio) {// 逻辑磁盘超过阈值了，需要清理
                     DefaultMessageStore.LOGGER.info("consumeQueue disk maybe full soon, so reclaim space, " + logicsRatio);
                     return true;
                 }
                 return false;
-            } else {
+            } else {// 如果磁盘有多个副本的话
                 long majorFileSize = DefaultMessageStore.this.getMajorFileSize();
                 long partitionLogicalSize = UtilAll.getDiskPartitionTotalSpace(minStorePath) / replicasPerPartition;
                 double logicalRatio = 1.0 * majorFileSize / partitionLogicalSize;
@@ -2800,7 +2800,7 @@ public class DefaultMessageStore implements MessageStore {
 
                         if (dispatchRequest.isSuccess()) {
                             if (size > 0) {
-                                DefaultMessageStore.this.doDispatch(dispatchRequest);
+                                DefaultMessageStore.this.doDispatch(dispatchRequest);// 处理(其中包含处理CompactLog)
 
                                 if (DefaultMessageStore.this.brokerConfig.isLongPollingEnable()
                                     && DefaultMessageStore.this.messageArrivingListener != null) {

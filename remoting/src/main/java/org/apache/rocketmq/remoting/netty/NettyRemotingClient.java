@@ -512,7 +512,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         // 获取随机到的通道地址
         String channelRemoteAddr = RemotingHelper.parseChannelRemoteAddr(channel);
         //System.out.printf("本次invokeSync请求addr:%s,解析到的地址为:%s", addr, channelRemoteAddr);
-        System.out.println();
+        //System.out.println();
         if (channel != null && channel.isActive()) {
             try {
                 //执行 前缀钩子，有机会在这里插入自己自定义的属性；比如DynamicalExtFieldRPCHook就尝试在extFields里面配置"__ZONE_NAME"和 "__ZONE_MODE"

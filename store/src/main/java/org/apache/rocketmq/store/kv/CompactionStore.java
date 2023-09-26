@@ -151,7 +151,9 @@ public class CompactionStore {
                     v = new CompactionLog(defaultMessageStore, this, topic, queueId);
                     v.load(true);
                     int randomDelay = 1000 + new Random(System.currentTimeMillis()).nextInt(compactionInterval);
-                    compactionSchedule.scheduleWithFixedDelay(v::doCompaction, compactionInterval + randomDelay, compactionInterval + randomDelay, TimeUnit.MILLISECONDS);
+                    //compactionSchedule.scheduleWithFixedDelay(v::doCompaction, compactionInterval + randomDelay, compactionInterval + randomDelay, TimeUnit.MILLISECONDS);
+                    //TODO.. 手动修改一下时间，方便调试
+                    compactionSchedule.scheduleWithFixedDelay(v::doCompaction, 60000, 60000, TimeUnit.MILLISECONDS);
                 } catch (IOException e) {
                     log.error("create compactionLog exception: ", e);
                     return null;
@@ -173,7 +175,7 @@ public class CompactionStore {
     public void doDispatch(DispatchRequest dispatchRequest, SelectMappedBufferResult smr) throws Exception {
         CompactionLog clog = loadAndGetClog(dispatchRequest.getTopic(), dispatchRequest.getQueueId());
 
-        if (clog != null) {
+        if (clog != null) {// 异步处理，将MSG put 到CompactiongLog中
             clog.asyncPutMessage(smr.getByteBuffer(), dispatchRequest);
         }
     }

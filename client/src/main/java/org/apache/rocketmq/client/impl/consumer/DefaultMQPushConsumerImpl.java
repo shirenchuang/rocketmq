@@ -393,7 +393,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                         case NO_NEW_MSG:
                         case NO_MATCHED_MSG:
                             pullRequest.setNextOffset(pullResult.getNextBeginOffset());
-                            // 更新下一次获取消息的偏移量
+                            // // 如果待消费的消息=0，全部消费完了；尝试重新更新一下消费偏移量
                             DefaultMQPushConsumerImpl.this.correctTagsOffset(pullRequest);
                             // 立马发起下一次请求
                             DefaultMQPushConsumerImpl.this.executePullRequestImmediately(pullRequest);
@@ -696,7 +696,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     }
 
     private void correctTagsOffset(final PullRequest pullRequest) {
-        if (0L == pullRequest.getProcessQueue().getMsgCount().get()) {
+        if (0L == pullRequest.getProcessQueue().getMsgCount().get()) {// 待消费的消息=0，全部消费完了；尝试重新更新一下消费偏移量
             this.offsetStore.updateOffset(pullRequest.getMessageQueue(), pullRequest.getNextOffset(), true);
         }
     }
@@ -761,7 +761,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             msg.setTopic(NamespaceUtil.withoutNamespace(msg.getTopic(), this.defaultMQPushConsumer.getNamespace()));
         }
     }
-
+    // 以发送普通消息的形式发送重试消息
     private void sendMessageBackAsNormalMessage(MessageExt msg) throws  RemotingException, MQBrokerException, InterruptedException, MQClientException {
         Message newMsg = new Message(MixAll.getRetryTopic(this.defaultMQPushConsumer.getConsumerGroup()), msg.getBody());
 
@@ -775,7 +775,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         MessageAccessor.setMaxReconsumeTimes(newMsg, String.valueOf(getMaxReconsumeTimes()));
         MessageAccessor.clearProperty(newMsg, MessageConst.PROPERTY_TRANSACTION_PREPARED);
         newMsg.setDelayTimeLevel(3 + msg.getReconsumeTimes());
-
+        // 当前消费者默认的内置 Producer客户端； 它的实例名是：CLIENT_INNER_PRODUCER
         this.mQClientFactory.getDefaultMQProducer().send(newMsg);
     }
 

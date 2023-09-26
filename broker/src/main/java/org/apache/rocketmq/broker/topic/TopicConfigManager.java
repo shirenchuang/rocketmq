@@ -490,13 +490,13 @@ public class TopicConfigManager extends ConfigManager {
     }
 
     public void updateOrderTopicConfig(final KVTable orderKVTableFromNs) {
-
+        // 这里是从Namesrv中获取的所有 顺序消息的对应的Broker和Broker中对应的队列数量，它的作用就是避免后续队列扩容缩容导致队列数量变化而造成消息发送到别的队列中。
         if (orderKVTableFromNs != null && orderKVTableFromNs.getTable() != null) {
             boolean isChange = false;
             Set<String> orderTopics = orderKVTableFromNs.getTable().keySet();
             for (String topic : orderTopics) {
                 TopicConfig topicConfig = this.topicConfigTable.get(topic);
-                if (topicConfig != null && !topicConfig.isOrder()) {
+                if (topicConfig != null && !topicConfig.isOrder()) {// 如果Topic配置不是顺序消息了, 则更新一下
                     topicConfig.setOrder(true);
                     isChange = true;
                     log.info("update order topic config, topic={}, order={}", topic, true);

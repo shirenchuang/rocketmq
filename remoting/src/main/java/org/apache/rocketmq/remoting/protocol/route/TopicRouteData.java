@@ -31,7 +31,7 @@ import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 import org.apache.rocketmq.remoting.protocol.statictopic.TopicQueueMappingInfo;
 
 public class TopicRouteData extends RemotingSerializable {
-    private String orderTopicConf;
+    private String orderTopicConf;// 顺序Topic的配置，保存这Topic在每个Broker中的队列数量，不受到扩缩容导致队列数量变化的影响。
     private List<QueueData> queueDatas;
     private List<BrokerData> brokerDatas;
     private HashMap<String/* brokerAddr */, List<String>/* Filter Server */> filterServerTable;

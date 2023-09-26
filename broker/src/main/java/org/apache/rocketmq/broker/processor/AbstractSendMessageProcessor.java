@@ -127,7 +127,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
             response.setRemark(null);
             return response;
         }
-
+        //%RETRY%{consumerGroup}
         String newTopic = MixAll.getRetryTopic(requestHeader.getGroup());
         int queueIdInt = this.random.nextInt(subscriptionGroupConfig.getRetryQueueNums());
 
@@ -153,14 +153,14 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
             return response;
         }
 
-        // Look message from the origin message store
+        // Look message from the origin message store  根据Msg的偏移量找到这条消息
         MessageExt msgExt = currentBroker.getMessageStore().lookMessageByOffset(requestHeader.getOffset());
         if (null == msgExt) {
             response.setCode(ResponseCode.SYSTEM_ERROR);
             response.setRemark("look message by offset failed, " + requestHeader.getOffset());
             return response;
         }
-
+        // 看下该消息是不是 %RETRY% 重试消息， 如果不是的话 则给它加上 重试的属性
         final String retryTopic = msgExt.getProperty(MessageConst.PROPERTY_RETRY_TOPIC);
         if (null == retryTopic) {
             MessageAccessor.putProperty(msgExt, MessageConst.PROPERTY_RETRY_TOPIC, msgExt.getTopic());

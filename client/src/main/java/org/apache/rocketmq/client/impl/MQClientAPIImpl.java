@@ -819,7 +819,7 @@ public class MQClientAPIImpl implements NameServerUpdateCallback {
         if (regionId == null || regionId.isEmpty()) {
             regionId = MixAll.DEFAULT_TRACE_REGION_ID;
         }
-        sendResult.setRegionId(regionId);
+        sendResult.setRegionId(regionId);// Broker端会根据配置traceOn,返回到response中，用来判断是否允许写入消息轨迹
         String traceOn = response.getExtFields().get(MessageConst.PROPERTY_TRACE_SWITCH);
         sendResult.setTraceOn(!Boolean.FALSE.toString().equals(traceOn));
         return sendResult;

@@ -65,7 +65,7 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
             }
 
             if (null != offsetOld) {
-                if (increaseOnly) {
+                if (increaseOnly) {// 只有 offset > offsetOld 的时候才更新
                     MixAll.compareAndIncreaseOnly(offsetOld, offset);
                 } else {
                     offsetOld.set(offset);
@@ -130,6 +130,12 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
                             this.mQClientFactory.getClientId(),
                             mq,
                             offset.get());
+                        System.out.printf("[persistAll] Group: %s ClientId:  %s updateConsumeOffsetToBroker  %s  %s",
+                                this.groupName,
+                                this.mQClientFactory.getClientId(),
+                                mq,
+                                offset.get());
+                        System.out.println();
                     } catch (Exception e) {
                         log.error("updateConsumeOffsetToBroker exception, " + mq.toString(), e);
                     }

@@ -77,7 +77,7 @@ public class ClientRequestProcessor implements NettyRequestProcessor {
             if (needCheckNamesrvReady.get()) {
                 needCheckNamesrvReady.set(false);
             }
-
+            // 如果允许顺序消息,则就去读取KV配置
             if (this.namesrvController.getNamesrvConfig().isOrderMessageEnable()) {
                 String orderTopicConf =
                     this.namesrvController.getKvConfigManager().getKVConfig(NamesrvUtil.NAMESPACE_ORDER_TOPIC_CONFIG,

@@ -934,7 +934,7 @@ public class BrokerController {
             }
         };
 
-        if (messageStore != null) {
+        if (messageStore != null) {// 向指定的Broker 发回消息
             messageStore.setSendMessageBackHook(sendMessageBackHook);
         }
     }

@@ -87,7 +87,7 @@ public class CommitLog implements Swappable {
     protected final PutMessageLock putMessageLock;
 
     protected final TopicQueueLock topicQueueLock;
-
+    // 磁盘使用率超过阈值的磁盘分区集合
     private volatile Set<String> fullStorePaths = Collections.emptySet();
 
     private final FlushDiskWatcher flushDiskWatcher;

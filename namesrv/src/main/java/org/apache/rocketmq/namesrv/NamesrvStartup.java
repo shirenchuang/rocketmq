@@ -110,7 +110,7 @@ public class NamesrvStartup {
                     controllerConfig = new ControllerConfig();
                     MixAll.properties2Object(properties, controllerConfig);
                 }
-                namesrvConfig.setConfigStorePath(file);
+                namesrvConfig.setConfigStorePath(file);// 从哪里读取的，写入也是写入到那个文件
 
                 System.out.printf("load config properties file OK, %s%n", file);
                 in.close();

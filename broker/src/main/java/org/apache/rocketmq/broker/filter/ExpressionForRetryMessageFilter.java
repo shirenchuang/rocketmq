@@ -44,9 +44,9 @@ public class ExpressionForRetryMessageFilter extends ExpressionMessageFilter {
         if (subscriptionData.isClassFilterMode()) {
             return true;
         }
-
+        // 如果是重试类型的Topic
         boolean isRetryTopic = subscriptionData.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX);
-
+        // Tag类型 并且 不是重试消息，返回匹配成功
         if (!isRetryTopic && ExpressionType.isTagType(subscriptionData.getExpressionType())) {
             return true;
         }

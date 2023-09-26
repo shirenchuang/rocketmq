@@ -54,7 +54,7 @@ public class CompactionService {
         //check request topic flag
         if (Objects.equals(policy, CleanupPolicy.COMPACTION)) {
             SelectMappedBufferResult smr = null;
-            try {
+            try {// 获取commitLog文件中的队友消息，发送到 compactLog中。
                 smr = commitLog.getData(request.getCommitLogOffset());
                 if (smr != null) {
                     compactionStore.doDispatch(request, smr);

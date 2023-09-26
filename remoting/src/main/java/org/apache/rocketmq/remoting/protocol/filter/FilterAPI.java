@@ -48,7 +48,7 @@ public class FilterAPI {
 
     public static SubscriptionData build(final String topic, final String subString,
         final String type) throws Exception {
-        if (ExpressionType.TAG.equals(type) || type == null) {
+        if (ExpressionType.TAG.equals(type) || type == null) {// 构建订阅数据 ,有保存 Tag 和 Tag.hashCode
             return buildSubscriptionData(topic, subString);
         }
 

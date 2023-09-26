@@ -108,7 +108,7 @@ public class PullAPIWrapper {
                     log.error("Try to decode the inner batch failed for {}", pullResult.toString(), t);
                 }
             }
-            // 客户端再过滤一遍
+            // 客户端再过滤一遍, 这里就是直接使用Tag来过滤了, Broker端过滤的时候是用的hashcode，这里再次过滤是避免可能出现的hash冲突
             List<MessageExt> msgListFilterAgain = msgList;
             if (!subscriptionData.getTagsSet().isEmpty() && !subscriptionData.isClassFilterMode()) {
                 msgListFilterAgain = new ArrayList<>(msgList.size());

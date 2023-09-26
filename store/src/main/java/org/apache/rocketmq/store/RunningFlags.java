@@ -128,13 +128,13 @@ public class RunningFlags {
         return false;
     }
 
-    public boolean getAndMakeDiskFull() {
+    public boolean getAndMakeDiskFull() {//设置磁盘满了
         boolean result = !((this.flagBits & DISK_FULL_BIT) == DISK_FULL_BIT);
         this.flagBits |= DISK_FULL_BIT;
         return result;
     }
 
-    public boolean getAndMakeDiskOK() {
+    public boolean getAndMakeDiskOK() {// 设置磁盘还正常
         boolean result = !((this.flagBits & DISK_FULL_BIT) == DISK_FULL_BIT);
         this.flagBits &= ~DISK_FULL_BIT;
         return result;

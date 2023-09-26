@@ -239,7 +239,7 @@ public class UtilAll {
         File file = new File(path);
         return file.exists();
     }
-
+    // 计算文件所在磁盘分区的整体使用率
     public static double getDiskPartitionSpaceUsedPercent(final String path) {
         if (null == path || path.isEmpty()) {
             STORE_LOG.error("Error when measuring disk space usage, path is null or empty, path : {}", path);
@@ -253,16 +253,16 @@ public class UtilAll {
                 STORE_LOG.error("Error when measuring disk space usage, file doesn't exist on this path: {}", path);
                 return -1;
             }
-
+            //这个文件所在磁盘分区总共能存储的空间
             long totalSpace = file.getTotalSpace();
-
+            //file.getFreeSpace() 这个是文件所在的磁盘分区，剩余的存储空间（不一定就是可以用的存储空间，剩余存储空间就是，磁盘的总空间减去已经使用存储空间）
             if (totalSpace > 0) {
-                long usedSpace = totalSpace - file.getFreeSpace();
-                long usableSpace = file.getUsableSpace();
+                long usedSpace = totalSpace - file.getFreeSpace();// 已使用的磁盘空间
+                long usableSpace = file.getUsableSpace();//这个是文件所在的磁盘分区，真正可以使用的存储空间
                 long entireSpace = usedSpace + usableSpace;
                 long roundNum = 0;
                 if (usedSpace * 100 % entireSpace != 0) {
-                    roundNum = 1;
+                    roundNum = 1; // 取模部分不足 1% 按照1%计算
                 }
                 long result = usedSpace * 100 / entireSpace + roundNum;
                 return result / 100.0;

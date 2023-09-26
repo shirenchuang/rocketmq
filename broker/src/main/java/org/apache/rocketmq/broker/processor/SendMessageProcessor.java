@@ -232,7 +232,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         final SendMessageRequestHeader requestHeader,
         final TopicQueueMappingContext mappingContext,
         final SendMessageCallback sendMessageCallback) throws RemotingCommandException {
-
+        // 有设置是否开启了TracdOn 消息轨迹
         final RemotingCommand response = preSend(ctx, request, requestHeader);
         if (response.getCode() != -1) {
             return response;
@@ -271,6 +271,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
         CleanupPolicy cleanupPolicy = CleanupPolicyUtils.getDeletePolicy(Optional.of(topicConfig));
         if (Objects.equals(cleanupPolicy, CleanupPolicy.COMPACTION)) {
+            // 删除策略是 ：紧缩 的情况，key是必须的
             if (StringUtils.isBlank(msgInner.getKeys())) {
                 response.setCode(ResponseCode.MESSAGE_ILLEGAL);
                 response.setRemark("Required message key is missing");

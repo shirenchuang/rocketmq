@@ -297,7 +297,7 @@ public class AsyncTraceDispatcher implements TraceDispatcher {
         private void sendDataByTimeThreshold() {
             long now = System.currentTimeMillis();
             for (TraceDataSegment taskInfo : taskQueueByTopic.values()) {
-                if (now - taskInfo.firstBeanAddTime >= waitTimeThresholdMil) {
+                if (now - taskInfo.firstBeanAddTime >= waitTimeThresholdMil) {// 一批次最多 不超过500ms，就得发送出去了
                     taskInfo.sendAllData();
                 }
             }
@@ -333,7 +333,7 @@ public class AsyncTraceDispatcher implements TraceDispatcher {
 
             this.currentMsgKeySize = traceTransferBean.getTransKey().stream()
                 .reduce(currentMsgKeySize, (acc, x) -> acc + x.length(), Integer::sum);
-            if (currentMsgSize >= traceProducer.getMaxMessageSize() - 10 * 1000 || currentMsgKeySize >= MAX_MSG_KEY_SIZE) {
+            if (currentMsgSize >= traceProducer.getMaxMessageSize() - 10 * 1000 || currentMsgKeySize >= MAX_MSG_KEY_SIZE) { // 日光当前缓存的消息大小大于4M 或者
                 List<TraceTransferBean> dataToSend = new ArrayList(traceTransferBeanList);
                 AsyncDataSendTask asyncDataSendTask = new AsyncDataSendTask(traceTopicName, regionId, dataToSend);
                 traceExecutor.submit(asyncDataSendTask);

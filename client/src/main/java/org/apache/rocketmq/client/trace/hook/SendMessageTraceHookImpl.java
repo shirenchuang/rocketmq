@@ -42,7 +42,7 @@ public class SendMessageTraceHookImpl implements SendMessageHook {
 
     @Override
     public void sendMessageBefore(SendMessageContext context) {
-        //if it is message trace data,then it doesn't recorded
+        //if it is message trace data,then it doesn't recorded 如果是消息轨迹的Topic 那就不需要再执行了，不然成递归了
         if (context == null || context.getMessage().getTopic().startsWith(((AsyncTraceDispatcher) localDispatcher).getTraceTopicName())) {
             return;
         }
@@ -65,12 +65,12 @@ public class SendMessageTraceHookImpl implements SendMessageHook {
 
     @Override
     public void sendMessageAfter(SendMessageContext context) {
-        //if it is message trace data,then it doesn't recorded
+        //if it is message trace data,then it doesn't recorded  如果是消息轨迹的Topic 那就不需要再执行了，不然成递归了
         if (context == null || context.getMessage().getTopic().startsWith(((AsyncTraceDispatcher) localDispatcher).getTraceTopicName())
             || context.getMqTraceContext() == null) {
             return;
         }
-        if (context.getSendResult() == null) {
+        if (context.getSendResult() == null) {// 超时或者返回异常等消息发送失败的情况，那肯定消息轨迹也不能发送
             return;
         }
         // 判断一下Broker是否开启了Trace 消息轨迹
@@ -82,6 +82,7 @@ public class SendMessageTraceHookImpl implements SendMessageHook {
 
         TraceContext traceContext = (TraceContext) context.getMqTraceContext();
         TraceBean traceBean = traceContext.getTraceBeans().get(0);
+        // 计算花费的时间
         int costTime = (int) ((System.currentTimeMillis() - traceContext.getTimeStamp()) / traceContext.getTraceBeans().size());
         traceContext.setCostTime(costTime);
         if (context.getSendResult().getSendStatus().equals(SendStatus.SEND_OK)) {

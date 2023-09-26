@@ -87,7 +87,11 @@ public class ProcessQueue {
                 this.treeMapLock.readLock().lockInterruptibly();
                 try {
                     if (!msgTreeMap.isEmpty()) {
+                        // 这个起始时间，是在 ConsumerRequest 执行的前置处理器之后 塞进去的；
+                        // 一般会出现这种超时的情况,可能是消费者阻塞了。
+
                         String consumeStartTimeStamp = MessageAccessor.getConsumeStartTimeStamp(msgTreeMap.firstEntry().getValue());
+                        // 如果TreeMap中最小Offset那条消息一直失败重试超过了 15分钟; 那么会主动的尝试让他发回重试
                         if (StringUtils.isNotEmpty(consumeStartTimeStamp) && System.currentTimeMillis() - Long.parseLong(consumeStartTimeStamp) > pushConsumer.getConsumeTimeout() * 60 * 1000) {
                             msg = msgTreeMap.firstEntry().getValue();
                         }
@@ -104,7 +108,7 @@ public class ProcessQueue {
             }
 
             try {
-
+                // 发回重试，延迟等级 3 ； = 延迟时间 10s
                 pushConsumer.sendMessageBack(msg, 3);
                 log.info("send expire msg back. topic={}, msgId={}, storeHost={}, queueId={}, queueOffset={}", msg.getTopic(), msg.getMsgId(), msg.getStoreHost(), msg.getQueueId(), msg.getQueueOffset());
                 try {
@@ -112,6 +116,7 @@ public class ProcessQueue {
                     try {
                         if (!msgTreeMap.isEmpty() && msg.getQueueOffset() == msgTreeMap.firstKey()) {
                             try {
+                                // 发回重试，则将它从TreeMap中移除；
                                 removeMessage(Collections.singletonList(msg));
                             } catch (Exception e) {
                                 log.error("send expired msg exception", e);
@@ -128,7 +133,7 @@ public class ProcessQueue {
             }
         }
     }
-
+    // 把拉取到的消息都存放到TreeMap中；
     public boolean putMessage(final List<MessageExt> msgs) {
         boolean dispatchToConsume = false;
         try {
@@ -151,6 +156,7 @@ public class ProcessQueue {
                 }
 
                 if (!msgs.isEmpty()) {
+                    // 在最后一条消息里面 获取一下最大OFFSET
                     MessageExt messageExt = msgs.get(msgs.size() - 1);
                     String property = messageExt.getProperty(MessageConst.PROPERTY_MAX_OFFSET);
                     if (property != null) {
@@ -206,6 +212,7 @@ public class ProcessQueue {
                     }
                     msgCount.addAndGet(removedCnt);
 
+                    // 返回TreeMao中的第一个key，意思是返回  当前树中最小的Offset
                     if (!msgTreeMap.isEmpty()) {
                         // 返回Map中的最小KEY; 提交已消费的offset的时候，肯定是返回当前依然存在的最小的offset；
                         result = msgTreeMap.firstKey();
@@ -310,6 +317,7 @@ public class ProcessQueue {
             this.lastConsumeTimestamp = now;
             try {
                 if (!this.msgTreeMap.isEmpty()) {
+                    // 根据批量消费消息的大小，一个一个的从TreeMap中取从来放到 consumingMsgOrderlyTreeMap 等待消费
                     for (int i = 0; i < batchSize; i++) {
                         Map.Entry<Long, MessageExt> entry = this.msgTreeMap.pollFirstEntry();
                         if (entry != null) {

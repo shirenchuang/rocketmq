@@ -16,11 +16,8 @@
  */
 package org.apache.rocketmq.tools.command.export;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Properties;
 
 import com.alibaba.fastjson.JSON;
 
@@ -106,13 +103,14 @@ public class ExportConfigsCommand implements SubCommand {
         }
     }
 
-    private Properties needBrokerProprties(Properties properties) {
+    private Properties needBrokerProprties2(Properties properties) {
         Properties newProperties = new Properties();
         newProperties.setProperty("brokerClusterName", properties.getProperty("brokerClusterName"));
         newProperties.setProperty("brokerId", properties.getProperty("brokerId"));
         newProperties.setProperty("brokerName", properties.getProperty("brokerName"));
         newProperties.setProperty("brokerRole", properties.getProperty("brokerRole"));
         newProperties.setProperty("fileReservedTime", properties.getProperty("fileReservedTime"));
+
         newProperties.setProperty("filterServerNums", properties.getProperty("filterServerNums"));
         newProperties.setProperty("flushDiskType", properties.getProperty("flushDiskType"));
         newProperties.setProperty("maxMessageSize", properties.getProperty("maxMessageSize"));
@@ -126,4 +124,33 @@ public class ExportConfigsCommand implements SubCommand {
         newProperties.setProperty("autoCreateSubscriptionGroup", properties.getProperty("autoCreateSubscriptionGroup"));
         return newProperties;
     }
+
+    private Properties needBrokerProprties(Properties properties) {
+        List<String> propertyKeys = Arrays.asList(
+                "brokerClusterName",
+                "brokerId",
+                "brokerName",
+                "brokerRole",
+                "fileReservedTime",
+                "filterServerNums",
+                "flushDiskType",
+                "maxMessageSize",
+                "messageDelayLevel",
+                "msgTraceTopicName",
+                "slaveReadEnable",
+                "traceOn",
+                "traceTopicEnable",
+                "useTLS",
+                "autoCreateTopicEnable",
+                "autoCreateSubscriptionGroup"
+        );
+
+        Properties newProperties = new Properties();
+        propertyKeys.stream()
+                .filter(key -> properties.getProperty(key) != null)
+                .forEach(key -> newProperties.setProperty(key, properties.getProperty(key)));
+
+        return newProperties;
+    }
+
 }

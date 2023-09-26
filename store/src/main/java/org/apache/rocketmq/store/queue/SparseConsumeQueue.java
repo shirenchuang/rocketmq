@@ -73,7 +73,7 @@ public class SparseConsumeQueue extends BatchConsumeQueue {
                     short batchSize = byteBuffer.getShort();
                     if (offset >= 0 && size > 0 && msgBaseOffset >= 0 && batchSize > 0) {
                         mappedFileOffset += CQ_STORE_UNIT_SIZE;
-                        this.maxMsgPhyOffsetInCommitLog = offset;
+                        this.maxMsgPhyOffsetInCommitLog = offset; // 当然CompactCq 最多Offset
                     } else {
                         log.info("Recover current batch consume queue file over, " + "file:{} offset:{} size:{} msgBaseOffset:{} batchSize:{} mappedFileOffset:{}",
                             mappedFile.getFileName(), offset, size, msgBaseOffset, batchSize, mappedFileOffset);

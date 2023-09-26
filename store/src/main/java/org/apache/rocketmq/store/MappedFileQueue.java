@@ -209,7 +209,7 @@ public class MappedFileQueue implements Swappable {
 
         this.deleteExpiredFile(willRemoveFiles);
     }
-
+    // 删除指定的文件
     void deleteExpiredFile(List<MappedFile> files) {
 
         if (!files.isEmpty()) {
@@ -469,25 +469,25 @@ public class MappedFileQueue implements Swappable {
         if (null == mfs)
             return 0;
 
-        int mfsLength = mfs.length - 1;
+        int mfsLength = mfs.length - 1;// 至少要保留最新的一个文件啊
         int deleteCount = 0;
         List<MappedFile> files = new ArrayList<>();
         int skipFileNum = 0;
         if (null != mfs) {
             //do check before deleting
             checkSelf();
-            for (int i = 0; i < mfsLength; i++) {
+            for (int i = 0; i < mfsLength; i++) {//
                 MappedFile mappedFile = (MappedFile) mfs[i];
-                long liveMaxTimestamp = mappedFile.getLastModifiedTimestamp() + expiredTime;
-                if (System.currentTimeMillis() >= liveMaxTimestamp || cleanImmediately) {
+                long liveMaxTimestamp = mappedFile.getLastModifiedTimestamp() + expiredTime; // 最后一次修改时间+过期时间；
+                if (System.currentTimeMillis() >= liveMaxTimestamp || cleanImmediately) {// cleanImmediately 立即清理，不用判断文件时间是否过期
                     if (skipFileNum > 0) {
                         log.info("Delete CommitLog {} but skip {} files", mappedFile.getFileName(), skipFileNum);
                     }
-                    if (mappedFile.destroy(intervalForcibly)) {
+                    if (mappedFile.destroy(intervalForcibly)) {// 删除mappFile文件。
                         files.add(mappedFile);
                         deleteCount++;
 
-                        if (files.size() >= deleteFileBatchMax) {
+                        if (files.size() >= deleteFileBatchMax) {// 超过本次删除文件大小，结束
                             break;
                         }
 
@@ -497,7 +497,7 @@ public class MappedFileQueue implements Swappable {
                             } catch (InterruptedException e) {
                             }
                         }
-                    } else {
+                    } else {// 删除失败
                         break;
                     }
                 } else {

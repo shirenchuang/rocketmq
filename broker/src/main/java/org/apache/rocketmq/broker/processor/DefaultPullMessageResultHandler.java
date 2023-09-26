@@ -173,7 +173,7 @@ public class DefaultPullMessageResultHandler implements PullMessageResultHandler
                 final boolean hasSuspendFlag = PullSysFlag.hasSuspendFlag(requestHeader.getSysFlag());
                 final long suspendTimeoutMillisLong = hasSuspendFlag ? requestHeader.getSuspendTimeoutMillis() : 0;
 
-                if (brokerAllowSuspend && hasSuspendFlag) {
+                if (brokerAllowSuspend && hasSuspendFlag) {//
                     long pollingTimeMills = suspendTimeoutMillisLong;
                     if (!this.brokerController.getBrokerConfig().isLongPollingEnable()) {
                         pollingTimeMills = this.brokerController.getBrokerConfig().getShortPollingTimeMills();

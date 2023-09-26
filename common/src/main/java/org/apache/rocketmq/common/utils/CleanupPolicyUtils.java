@@ -30,12 +30,12 @@ public class CleanupPolicyUtils {
     }
 
     public static CleanupPolicy getDeletePolicy(Optional<TopicConfig> topicConfig) {
-        if (!topicConfig.isPresent()) {
+        if (!topicConfig.isPresent()) {// TopicConfig 不存在 返回默认 DELETE 删除策略
             return CleanupPolicy.valueOf(TopicAttributes.CLEANUP_POLICY_ATTRIBUTE.getDefaultValue());
         }
-
+        // cleanup.policy
         String attributeName = TopicAttributes.CLEANUP_POLICY_ATTRIBUTE.getName();
-
+        // 查询Topic是否有配置 cleanup.policy属性，没有的话返回默认策略 DELETE
         Map<String, String> attributes = topicConfig.get().getAttributes();
         if (attributes == null || attributes.size() == 0) {
             return CleanupPolicy.valueOf(TopicAttributes.CLEANUP_POLICY_ATTRIBUTE.getDefaultValue());

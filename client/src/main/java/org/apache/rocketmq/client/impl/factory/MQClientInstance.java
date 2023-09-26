@@ -177,7 +177,7 @@ public class MQClientInstance {
         // TO DO should check the usage of raw route, it is better to remove such field
         info.setTopicRouteData(route);
         if (route.getOrderTopicConf() != null && route.getOrderTopicConf().length() > 0) {
-            String[] brokers = route.getOrderTopicConf().split(";");
+            String[] brokers = route.getOrderTopicConf().split(";");// 解析顺序TOpic的队列数量。
             for (String broker : brokers) {
                 String[] item = broker.split(":");
                 int nums = Integer.parseInt(item[1]);
@@ -199,7 +199,7 @@ public class MQClientInstance {
             List<QueueData> qds = route.getQueueDatas();
             Collections.sort(qds);
             for (QueueData qd : qds) {
-                if (PermName.isWriteable(qd.getPerm())) {
+                if (PermName.isWriteable(qd.getPerm())) {// 如果没有写权限的话则会忽略
                     BrokerData brokerData = null;
                     for (BrokerData bd : route.getBrokerDatas()) {
                         if (bd.getBrokerName().equals(qd.getBrokerName())) {
@@ -311,6 +311,7 @@ public class MQClientInstance {
         // 每隔persistConsumerOffsetInterval（默认5s）持久化所有的消费Offset(如果有注册消费者客户端的话)
         this.scheduledExecutorService.scheduleAtFixedRate(() -> {
             try {
+                System.out.println("定时任务持久化消费offset...");
                 MQClientInstance.this.persistAllConsumerOffset();
             } catch (Exception e) {
                 log.error("ScheduledTask persistAllConsumerOffset exception", e);

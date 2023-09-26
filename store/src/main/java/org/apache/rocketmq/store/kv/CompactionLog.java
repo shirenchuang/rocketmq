@@ -105,7 +105,7 @@ public class CompactionLog {
         this.offsetMapMemorySize = compactionStore.getOffsetMapSize();
         this.compactionCqMappedFileSize =
             messageStoreConfig.getCompactionCqMappedFileSize() / BatchConsumeQueue.CQ_STORE_UNIT_SIZE
-                * BatchConsumeQueue.CQ_STORE_UNIT_SIZE;
+                * BatchConsumeQueue.CQ_STORE_UNIT_SIZE; // 避免随意乱填，除了之后再乘，刚刚好
         this.compactionLogMappedFileSize = getCompactionLogSize(compactionCqMappedFileSize,
             messageStoreConfig.getCompactionMappedFileSize());
         this.compactionLogFilePath = Paths.get(compactionStore.getCompactionLogPath(),
@@ -318,14 +318,14 @@ public class CompactionLog {
     public long rollNextFile(final long offset) {
         return offset + compactionLogMappedFileSize - offset % compactionLogMappedFileSize;
     }
-
+    // 判断是否需要保留该Msg；如果Msg大于等于 OffsetMap中的对应key的offset，则保留该Msg
     boolean shouldRetainMsg(final MessageExt msgExt, final OffsetMap map) throws DigestException {
-        if (msgExt.getQueueOffset() > map.getLastOffset()) {
+        if (msgExt.getQueueOffset() > map.getLastOffset()) {// 如果消息的偏移量大于Map中的最大偏移量，则需要保留
             return true;
         }
 
         String key = msgExt.getKeys();
-        if (StringUtils.isNotBlank(key)) {
+        if (StringUtils.isNotBlank(key)) {// 如果当前Msg的偏移量 >= Map中的最大对应key的偏移量，则保留，否则不保留。
             boolean keyNotExistOrOffsetBigger = msgExt.getQueueOffset() >= map.get(key);
             boolean hasBody = ArrayUtils.isNotEmpty(msgExt.getBody());
             return keyNotExistOrOffsetBigger && hasBody;
@@ -338,7 +338,7 @@ public class CompactionLog {
     public void checkAndPutMessage(final SelectMappedBufferResult selectMappedBufferResult, final MessageExt msgExt,
         final OffsetMap offsetMap, final TopicPartitionLog tpLog)
         throws DigestException {
-        if (shouldRetainMsg(msgExt, offsetMap)) {
+        if (shouldRetainMsg(msgExt, offsetMap)) {// 是否需要保留Msg,如果Msg的offset大于等于 上次统计offsetMap的对应key的最大偏移量，则可以保留；   如果key不存在的话，也会返回false
             asyncPutMessage(selectMappedBufferResult.getByteBuffer(), msgExt, tpLog);
         }
     }
@@ -382,7 +382,7 @@ public class CompactionLog {
             return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null));
         }
 
-        if (StringUtils.isBlank(keys)) {
+        if (StringUtils.isBlank(keys)) { // key必须要有
             log.warn("message {}-{}:{} have no key, will not put in compaction log", topic, queueId, msgId);
             return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null));
         }
@@ -391,7 +391,7 @@ public class CompactionLog {
         try {
             long beginTime = System.nanoTime();
 
-            if (tpLog.isEmptyOrCurrentFileFull()) {
+            if (tpLog.isEmptyOrCurrentFileFull()) { // 当前文件夹是空的或者文件满了，则需要滚动创建新的文件。比如 紧缩操作的时候，也会创建新的文件 compacting/xxx
                 try {
                     tpLog.roll();
                 } catch (IOException e) {
@@ -399,7 +399,7 @@ public class CompactionLog {
                     return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, null));
                 }
             }
-
+            // 向CompactLog文件中写入日志。
             MappedFile mappedFile = tpLog.getLog().getLastMappedFile();
 
             CompactionAppendMsgCallback callback = new CompactionAppendMessageCallback(topic, queueId, tagsCode, storeTimestamp, tpLog.getCQ());
@@ -595,7 +595,7 @@ public class CompactionLog {
         for (int i = 0; i < mappedFileList.size() - 1; i++) {
             MappedFile mf = mappedFileList.get(i);
             long maxQueueOffsetInFile = getCQ().getMaxMsgOffsetFromFile(mf.getFile().getName());
-            if (maxQueueOffsetInFile > positionMgr.getOffset(topic, queueId)) {
+            if (maxQueueOffsetInFile > positionMgr.getOffset(topic, queueId)) {// 如果该文件的最大offset比上次处理过的还要大，说明需要进行压缩。
                 newFiles.add(mf);
             }
         }
@@ -613,18 +613,18 @@ public class CompactionLog {
         }
 
         long startTime = System.nanoTime();
-        OffsetMap offsetMap = getOffsetMap(compactFiles.newFiles);
+        OffsetMap offsetMap = getOffsetMap(compactFiles.newFiles);// 遍历文件中的所有消息，按照key维度将offset put到offsetMap中，offsetMap中保存着最新的对应key的offset
         compaction(compactFiles.toCompactFiles, offsetMap);
         replaceFiles(compactFiles.toCompactFiles, current, compacting);
         positionMgr.setOffset(topic, queueId, offsetMap.lastOffset);
-        positionMgr.persist();
+        positionMgr.persist();//  compaction/position-checkpoint  将每个KEY的 最大偏移量持久化
         compacting.clean(false, false);
         log.info("this compaction elapsed {} milliseconds",
             TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime));
 
     }
 
-    void doCompaction() {
+    void doCompaction() {//紧缩操作
         if (!state.compareAndSet(State.NORMAL, State.COMPACTING)) {
             log.warn("compactionLog state is {}, skip this time", state.get());
             return;
@@ -650,8 +650,8 @@ public class CompactionLog {
                     //decode bytebuffer
                     MessageExt msg = MessageDecoder.decode(smb.getByteBuffer(), true, false);
                     if (msg != null) {
-                        ////get key & offset and put to offsetMap
-                        if (msg.getQueueOffset() > positionMgr.getOffset(topic, queueId)) {
+                        ////get key & offset and put to offsetMap 获取KEY 和 Offset 放到offsetMap中；offsetMap保存的都是最新的
+                        if (msg.getQueueOffset() > positionMgr.getOffset(topic, queueId)) {// positionMgr保存了上次处理过的最大offset。如果小于该值则表示消息已经处理过了，不需要进行压缩
                             offsetMap.put(msg.getKeys(), msg.getQueueOffset());
                         }
                     } else {
@@ -852,7 +852,7 @@ public class CompactionLog {
             final int msgLen = bbSrc.getInt(0);
             MappedFile bcqMappedFile = bcq.getMappedFileQueue().getLastMappedFile();
             if (bcqMappedFile.getWrotePosition() + BatchConsumeQueue.CQ_STORE_UNIT_SIZE >= bcqMappedFile.getFileSize()
-                || (msgLen + END_FILE_MIN_BLANK_LENGTH) > maxBlank) {      //bcq will full or log will full
+                || (msgLen + END_FILE_MIN_BLANK_LENGTH) > maxBlank) {      //bcq will full or log will full 如果文件要满了，则返回END_OF_FILE，表示要重新创建新的文件了
 
                 bcq.putEndPositionInfo(bcqMappedFile);
 

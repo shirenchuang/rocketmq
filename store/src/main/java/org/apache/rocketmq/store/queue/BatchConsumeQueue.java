@@ -74,7 +74,7 @@ public class BatchConsumeQueue implements ConsumeQueueInterface {
 
     protected final String storePath;
     protected final int mappedFileSize;
-    protected volatile long maxMsgPhyOffsetInCommitLog = -1;
+    protected volatile long maxMsgPhyOffsetInCommitLog = -1;// 当然compactionCq文件 最大的物理Offset，存了多少数据
 
     protected volatile long minLogicOffset = 0;
 

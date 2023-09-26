@@ -37,7 +37,7 @@ public class DefaultMessageFilter implements MessageFilter {
         if (subscriptionData.isClassFilterMode()) {
             return true;
         }
-
+        //比较的是tagsCode ，可能会有hash冲突，所以客户端也会再次过滤一次
         return subscriptionData.getSubString().equals(SubscriptionData.SUB_ALL)
             || subscriptionData.getCodeSet().contains(tagsCode.intValue());
     }

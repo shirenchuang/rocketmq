@@ -28,13 +28,13 @@ public class SimpleBatchProducer {
 
     public static final String PRODUCER_GROUP = "BatchProducerGroupName";
     public static final String DEFAULT_NAMESRVADDR = "127.0.0.1:9876";
-    public static final String TOPIC = "BatchTest";
+    public static final String TOPIC = "BatchTest_szz1";
     public static final String TAG = "Tag";
 
     public static void main(String[] args) throws Exception {
         DefaultMQProducer producer = new DefaultMQProducer(PRODUCER_GROUP);
         // Uncomment the following line while debugging, namesrvAddr should be set to your local address
-//        producer.setNamesrvAddr(DEFAULT_NAMESRVADDR);
+        producer.setNamesrvAddr(DEFAULT_NAMESRVADDR);
         producer.start();
 
         //If you just send messages of no more than 1MiB at a time, it is easy to use batch
@@ -43,6 +43,10 @@ public class SimpleBatchProducer {
         messages.add(new Message(TOPIC, TAG, "OrderID001", "Hello world 0".getBytes(StandardCharsets.UTF_8)));
         messages.add(new Message(TOPIC, TAG, "OrderID002", "Hello world 1".getBytes(StandardCharsets.UTF_8)));
         messages.add(new Message(TOPIC, TAG, "OrderID003", "Hello world 2".getBytes(StandardCharsets.UTF_8)));
+        messages.add(new Message(TOPIC, TAG, "OrderID004", "Hello world 3".getBytes(StandardCharsets.UTF_8)));
+        messages.add(new Message(TOPIC, TAG, "OrderID005", "Hello world 4".getBytes(StandardCharsets.UTF_8)));
+        messages.add(new Message(TOPIC, TAG, "OrderID006", "Hello world 5".getBytes(StandardCharsets.UTF_8)));
+        messages.add(new Message(TOPIC, TAG, "OrderID007", "Hello world 6".getBytes(StandardCharsets.UTF_8)));
 
         SendResult sendResult = producer.send(messages);
         System.out.printf("%s", sendResult);

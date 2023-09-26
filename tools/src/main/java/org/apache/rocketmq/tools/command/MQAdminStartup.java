@@ -111,9 +111,17 @@ public class MQAdminStartup {
         System.getenv(MixAll.ROCKETMQ_HOME_ENV));
 
     public static void main(String[] args) {
+        String namesrv = "-n=127.0.0.1:9876";
+        String clusterName = "-c=szz_cluster_a";
+
        // args = new String[]{"help","updateTopic"};
        // args = new String[]{"updateTopic","-n=127.0.0.1:9876","-t=szz_t2","-c=szz_cluster_test","-r=1","-w=1"};
-        args = new String[]{"updateTopic","-n=127.0.0.1:9876","-t=szz_t6","-c=szz_cluster_a","-r=2","-w=2","-a=+message.type=NORMAL"};
+
+        // 触发删除过期日志
+        //args = new String[]{"deleteExpiredCommitLog","-n=127.0.0.1:9876","-c=szz_cluster_a"};
+
+        //导出Broker配置文件
+        args = new String[]{"exportConfigs",namesrv,clusterName};
         main0(args, null);
 
     }
