@@ -121,7 +121,10 @@ public class MQAdminStartup {
         //args = new String[]{"deleteExpiredCommitLog","-n=127.0.0.1:9876","-c=szz_cluster_a"};
 
         //导出Broker配置文件
-        args = new String[]{"exportConfigs",namesrv,clusterName};
+        //args = new String[]{"exportConfigs",namesrv,clusterName};
+
+        // 打印Broker的Epoch
+        args = new String[]{"getBrokerEpoch",namesrv,clusterName};
         main0(args, null);
 
     }

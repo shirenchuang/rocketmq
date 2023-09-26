@@ -2720,10 +2720,16 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
         final ReplicasManager replicasManager = this.brokerController.getReplicasManager();
         assert replicasManager != null;
         final BrokerConfig brokerConfig = this.brokerController.getBrokerConfig();
-        final EpochEntryCache entryCache = new EpochEntryCache(brokerConfig.getBrokerClusterName(),
-            brokerConfig.getBrokerName(), brokerConfig.getBrokerId(), replicasManager.getEpochEntries(), this.brokerController.getMessageStore().getMaxPhyOffset());
-
         final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+
+        if (!brokerConfig.isEnableControllerMode()) {
+            response.setCode(ResponseCode.SYSTEM_ERROR);
+            response.setRemark("this command only for ControllerMode ");
+            return response;
+        }
+        final EpochEntryCache entryCache = new EpochEntryCache(brokerConfig.getBrokerClusterName(),
+                brokerConfig.getBrokerName(), brokerConfig.getBrokerId(), replicasManager.getEpochEntries(), this.brokerController.getMessageStore().getMaxPhyOffset());
+
         response.setBody(entryCache.encode());
         response.setCode(ResponseCode.SUCCESS);
         response.setRemark(null);
