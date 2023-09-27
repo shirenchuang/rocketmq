@@ -37,6 +37,8 @@ import com.alibaba.fastjson.JSON;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.client.ClientConfig;
 import org.apache.rocketmq.client.admin.MQAdminExtInner;
+import org.apache.rocketmq.client.consumer.LitePullConsumer;
+import org.apache.rocketmq.client.consumer.MQPushConsumer;
 import org.apache.rocketmq.client.exception.MQBrokerException;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.impl.ClientRemotingProcessor;
@@ -93,20 +95,24 @@ public class MQClientInstance {
     private final long bootTimestamp = System.currentTimeMillis();
 
     /**
-     * 当前客户端中生产者的容器。关键是 ProducerGroup 的名称。
+     * 当前客户端中生产者的容器。key是 ProducerGroup 的名称。
      */
     private final ConcurrentMap<String, MQProducerInner> producerTable = new ConcurrentHashMap<>();
 
     /**
-     * The container of the consumer in the current client. The key is the name of consumerGroup.
+     * 当前客户端中消费者的容器。key是consumerGroup 的名称。
      */
     private final ConcurrentMap<String, MQConsumerInner> consumerTable = new ConcurrentHashMap<>();
 
     /**
-     * The container of the adminExt in the current client. The key is the name of adminExtGroup.
+     * 当前客户端中adminExt的容器。key是 adminExtGroup 的名称。
      */
     private final ConcurrentMap<String, MQAdminExtInner> adminExtTable = new ConcurrentHashMap<>();
+
+    // 客户端网络通信配置
     private final NettyClientConfig nettyClientConfig;
+
+    // 客户端API实现类
     private final MQClientAPIImpl mQClientAPIImpl;
     private final MQAdminImpl mQAdminImpl;
     private final ConcurrentMap<String/* Topic */, TopicRouteData> topicRouteTable = new ConcurrentHashMap<>();
@@ -126,8 +132,13 @@ public class MQClientInstance {
     private final Set<String/* Broker address */> brokerSupportV2HeartbeatSet = new HashSet();
     private final ConcurrentMap<String, Integer> brokerAddrHeartbeatFingerprintTable = new ConcurrentHashMap();
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(r -> new Thread(r, "MQClientFactoryScheduledThread"));
+    /** 消费者拉取消息的服务 only for Consumer **/
     private final PullMessageService pullMessageService;
+
+    /**重平衡的服务 only for Consumer **/
     private final RebalanceService rebalanceService;
+
+    /** 生产者客户端, 内部的生产者客户端 **/
     private final DefaultMQProducer defaultMQProducer;
     private final ConsumerStatsManager consumerStatsManager;
     private final AtomicLong sendHeartbeatTimesTotal = new AtomicLong(0);
@@ -263,15 +274,23 @@ public class MQClientInstance {
                     this.mQClientAPIImpl.start();
                     // Start various schedule tasks
                     this.startScheduledTask();
-                    // Start pull service
-                    this.pullMessageService.start();
-                    // Start rebalance service
-                    this.rebalanceService.start();
-                    // Start push service
-                    this.defaultMQProducer.getDefaultMQProducerImpl().start(false);
+
+                    // only for consumer
+                    if (!consumerTable.isEmpty()
+                            || clientConfig instanceof LitePullConsumer
+                            || clientConfig instanceof MQPushConsumer) {
+                        start4ConsumerService();
+                    }
+
                     log.info("the client factory [{}] start OK", this.clientId);
                     this.serviceState = ServiceState.RUNNING;
                     break;
+                case RUNNING:
+                    // If a Consumer is added later, make sure to start the Consumer-related services
+                    if (!consumerTable.isEmpty() && !pullMessageService.isStopped()) {
+                        start4ConsumerService();
+                    }
+
                 case START_FAILED:
                     throw new MQClientException("The Factory object[" + this.getClientId() + "] has been created before, and failed.", null);
                 default:
@@ -279,6 +298,18 @@ public class MQClientInstance {
             }
         }
     }
+
+    private void start4ConsumerService() throws MQClientException {
+        // Start pull service
+        this.pullMessageService.start();
+        // Start rebalance service
+        this.rebalanceService.start();
+        // Start push service ;
+        // When the consumer fails to consume and needs to retry, use this internal producer to send a retry message back to the Broker.
+        this.defaultMQProducer.getDefaultMQProducerImpl().start(false);
+    }
+
+
     // 如果NameSrv不是直接配置确定的地址，则会每隔2分钟定时去NameSrv地址服务器获取NameSrv地址
     private void startScheduledTask() {
         if (null == this.clientConfig.getNamesrvAddr()) {

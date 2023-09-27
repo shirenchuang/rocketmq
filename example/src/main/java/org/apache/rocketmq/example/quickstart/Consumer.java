@@ -68,7 +68,8 @@ public class Consumer {
         DefaultMQPushConsumer consumer = new DefaultMQPushConsumer(null,"szz_consumer_group_02", new SzzConsumerRpcHook());
         consumer.setNamesrvAddr(DEFAULT_NAMESRVADDR);
 
-        consumer.subscribe("szz_test_compaction1", "*");
+        consumer.setInstanceName("szz_instance");
+        consumer.subscribe("test", "*");
         consumer.registerMessageListener((MessageListenerOrderly) (msg, context) -> {
            // System.out.printf(" ----- %s 消费消息: %s  本批次大小: %s   ------ ", Thread.currentThread().getName(), msg, msg.size());
 

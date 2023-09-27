@@ -19,6 +19,9 @@ package org.apache.rocketmq.example.quickstart;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import org.apache.commons.collections.MapUtils;
+import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
+import org.apache.rocketmq.client.consumer.listener.ConsumeOrderlyStatus;
+import org.apache.rocketmq.client.consumer.listener.MessageListenerOrderly;
 import org.apache.rocketmq.client.exception.MQBrokerException;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.hook.*;
@@ -63,6 +66,7 @@ public class Producer {
             //sendSyncMsg(args);
             //sendSyncMsgTestHooks(args);
             sendSyncMsgSelector(args);
+            startConsumer();
             //sendMsg2Producer(args);
             //sendOrderlyMsg();
         } catch (Exception e) {
@@ -86,7 +90,7 @@ public class Producer {
 
 
     public static void sendOrderlyMsg() throws MQClientException, MQBrokerException, RemotingException, InterruptedException {
-        DefaultMQProducer producer = new DefaultMQProducer("group_orderly",null,true,null);
+        DefaultMQProducer producer = new DefaultMQProducer("group_orderly", null, true, null);
         producer.setNamesrvAddr(DEFAULT_NAMESRVADDR);
         producer.setSendMsgTimeout(3000000);
 /*
@@ -97,7 +101,7 @@ public class Producer {
         producer.start();
 
         for (int i = 0; i < 1; i++) {
-            Message msg = new Message("szz_test_compaction1", "tag", "k1", (i+"").getBytes());
+            Message msg = new Message("szz_test_compaction1", "tag", "k1", (i + "").getBytes());
             producer.send(msg);
         }
 
@@ -116,7 +120,7 @@ public class Producer {
 
         try {
             for (int i = 0; i < 100; i++) {
-                producer1.send(new Message("szz_queue_2", "TAG2", (i+"").getBytes()));
+                producer1.send(new Message("szz_queue_2", "TAG2", (i + "").getBytes()));
                 System.out.println("producer1:success");
             }
 
@@ -189,15 +193,15 @@ public class Producer {
 
     public static void sendSyncMsgSelector(String[] args) throws InterruptedException, MQClientException, UnsupportedEncodingException {
         //String topic = "TopicTest";
-        String topic = "szz_test_1";
+        String topic = "szz_test_4";
         String tag = "Tag-SZZ-msgqueue";
-        String groupName = "szz_producer_group_msgqueue";
+        String groupName = "szz_producer_group";
         // 设置自定义Hook 和 开启消息轨迹
         DefaultMQProducer producer = new DefaultMQProducer(groupName, null, true, null);
         producer.setNamesrvAddr(DEFAULT_NAMESRVADDR);
         // 如果设置了 命名空间的话, 最终的ProducerGroup为【${namespace}%groupName】 例如： szz_daily%szz_producer_group
         // 设置生产者客户端实例名称; 可以通过系统属性`rocketmq.client.name` 设置，没有设置的话默认DEFAULT; 但是启动的时候判断如果是DEFAULT，则将它改成：PID@时间戳
-        producer.setInstanceName("szz-producer-cliendName");
+        producer.setInstanceName("szz_instance");
 
         //producer.getDefaultMQProducerImpl().registerSendMessageHook(new SzzMessageHook());
         //producer.getDefaultMQProducerImpl().registerCheckForbiddenHook(new SzzForbiddenMessageHook());
@@ -349,7 +353,7 @@ public class Producer {
 
         @Override
         public void sendMessageAfter(SendMessageContext context) {
-            if(context.getSendResult().getSendStatus() != SendStatus.SEND_OK){
+            if (context.getSendResult().getSendStatus() != SendStatus.SEND_OK) {
                 System.out.println("消息发送失败了..");
             }
 
@@ -386,7 +390,7 @@ public class Producer {
 
             System.out.println("SzzForbiddenMessageHook#checkForbidden.....");
 
-            if(context.getCommunicationMode() != CommunicationMode.SYNC){
+            if (context.getCommunicationMode() != CommunicationMode.SYNC) {
                 throw new RuntimeException("请使用同步方式发送消息");
             }
         }
@@ -406,6 +410,39 @@ public class Producer {
             System.out.println("SzzEndTransactionHook#endTransaction.....");
 
         }
+    }
+
+
+    public static void startConsumer() throws MQClientException {
+
+        DefaultMQPushConsumer consumer = new DefaultMQPushConsumer(null,"szz_consumer_group_02", new Consumer.SzzConsumerRpcHook());
+        consumer.setNamesrvAddr(DEFAULT_NAMESRVADDR);
+
+        consumer.setInstanceName("szz_instance");
+        consumer.subscribe("test", "*");
+        consumer.registerMessageListener((MessageListenerOrderly) (msg, context) -> {
+            // System.out.printf(" ----- %s 消费消息: %s  本批次大小: %s   ------ ", Thread.currentThread().getName(), msg, msg.size());
+
+            for (int i = 0; i < msg.size(); i++) {
+                java.lang.String s = java.lang.String.valueOf(msg.get(i).getBody());
+                System.out.println("body"+ s +", MSG: " + msg.get(i) );
+            }
+            return ConsumeOrderlyStatus.SUCCESS;
+        });
+
+        consumer.getDefaultMQPushConsumerImpl().registerFilterMessageHook(new Consumer.SzzConsumerFilterHooks());
+
+        consumer.registerConsumeMessageHook(new Consumer.SzzConsumeMessageHooks());
+
+
+        consumer.setPullBatchSize(5);
+        // 一次处理消息的数量大小
+        consumer.setConsumeMessageBatchMaxSize(1);
+        ///consumer.registerConsumeMessageHook(new SzzConsumerMessageHook());
+        // 50秒持久化一次
+        consumer.setPersistConsumerOffsetInterval(50*1000);
+        consumer.start();
+
     }
 
 
